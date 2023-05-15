@@ -74,7 +74,7 @@ public class SocketDataPort implements DataPort {
             socket.setTcpNoDelay(true);
             socket.setReceiveBufferSize(2 * 1024 * 1024);
             socket.setSendBufferSize(2 * 1024 * 1024);
-            InetSocketAddress inetSocketAddress = options.isNoResolveHostnames() ?
+            InetSocketAddress inetSocketAddress = (options.isNoResolveHostnames() && !nuri.hostIsIpAddress()) ?
                     InetSocketAddress.createUnresolved(host, port) : new InetSocketAddress(host, port);
             socket.connect(inetSocketAddress, (int) timeout);
 
