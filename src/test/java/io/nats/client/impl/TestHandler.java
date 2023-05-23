@@ -386,11 +386,11 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     public <T> boolean _OrWait(long timeout, Supplier<List<T>> listSupplier, Predicate<T> predicate) {
         long start = System.currentTimeMillis();
+        int i = 0;
         do {
             List<T> list = listSupplier.get();
             int size = list.size();
-            //noinspection ForLoopReplaceableByForEach
-            for (int i = 0; i < size; i++) {
+            for (; i < size; i++) {
                 if (predicate.test(list.get(i))) {
                     return true;
                 }

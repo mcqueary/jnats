@@ -33,7 +33,6 @@ import static io.nats.client.support.JsonValueUtils.*;
 public class EndpointResponse implements JsonSerializable {
     private final String name;
     private final String subject;
-    private final Schema schema;
     private final long numRequests;
     private final long numErrors;
     private final long processingTime;
@@ -50,7 +49,6 @@ public class EndpointResponse implements JsonSerializable {
     EndpointResponse(String name, String subject, long numRequests, long numErrors, long processingTime, String lastError, JsonValue data, ZonedDateTime started) {
         this.name = name;
         this.subject = subject;
-        this.schema = null;
         this.numRequests = numRequests;
         this.numErrors = numErrors;
         this.processingTime = processingTime;
@@ -61,10 +59,9 @@ public class EndpointResponse implements JsonSerializable {
     }
 
     // This is for schema
-    EndpointResponse(String name, String subject, Schema schema) {
+    EndpointResponse(String name, String subject) {
         this.name = name;
         this.subject = subject;
-        this.schema = schema;
         this.numRequests = 0;
         this.numErrors = 0;
         this.processingTime = 0;
@@ -77,7 +74,6 @@ public class EndpointResponse implements JsonSerializable {
     EndpointResponse(JsonValue vEndpointResponse) {
         name = readString(vEndpointResponse, NAME);
         subject = readString(vEndpointResponse, SUBJECT);
-        schema = Schema.optionalInstance(readValue(vEndpointResponse, SCHEMA));
         numRequests = readLong(vEndpointResponse, NUM_REQUESTS, 0);
         numErrors = readLong(vEndpointResponse, NUM_ERRORS, 0);
         processingTime = readLong(vEndpointResponse, PROCESSING_TIME, 0);
@@ -92,7 +88,6 @@ public class EndpointResponse implements JsonSerializable {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
         JsonUtils.addField(sb, SUBJECT, subject);
-        JsonUtils.addField(sb, SCHEMA, schema);
         JsonUtils.addFieldWhenGtZero(sb, NUM_REQUESTS, numRequests);
         JsonUtils.addFieldWhenGtZero(sb, NUM_ERRORS, numErrors);
         JsonUtils.addFieldWhenGtZero(sb, PROCESSING_TIME, processingTime);
@@ -109,10 +104,6 @@ public class EndpointResponse implements JsonSerializable {
 
     public String getSubject() {
         return subject;
-    }
-
-    public Schema getSchema() {
-        return schema;
     }
 
     public long getNumRequests() {
@@ -161,7 +152,6 @@ public class EndpointResponse implements JsonSerializable {
         if (averageProcessingTime != that.averageProcessingTime) return false;
         if (!Objects.equals(name, that.name)) return false;
         if (!Objects.equals(subject, that.subject)) return false;
-        if (!Objects.equals(schema, that.schema)) return false;
         if (!Objects.equals(lastError, that.lastError)) return false;
         if (!Objects.equals(data, that.data)) return false;
         return Objects.equals(started, that.started);
@@ -171,7 +161,6 @@ public class EndpointResponse implements JsonSerializable {
     public int hashCode() {
         int result = name != null ? name.hashCode() : 0;
         result = 31 * result + (subject != null ? subject.hashCode() : 0);
-        result = 31 * result + (schema != null ? schema.hashCode() : 0);
         result = 31 * result + (int) (numRequests ^ (numRequests >>> 32));
         result = 31 * result + (int) (numErrors ^ (numErrors >>> 32));
         result = 31 * result + (int) (processingTime ^ (processingTime >>> 32));

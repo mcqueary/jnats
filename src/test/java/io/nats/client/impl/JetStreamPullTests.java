@@ -251,7 +251,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // re-issue the pull, but a smaller amount
             sub.pull(2);
 
-            // read what is available, should be 5 since we changed the pull size
+            // read what is available, should be 2 since we changed the pull size
             messages = readMessagesAck(sub);
             total += messages.size();
             validateRedAndTotal(2, messages.size(),22, total);
@@ -259,7 +259,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // re-issue the pull, since we got the full batch size
             sub.pull(2);
 
-            // read what is available, should be zero since we didn't re-pull
+            // read what is available, should be 2
             messages = readMessagesAck(sub);
             total += messages.size();
             validateRedAndTotal(2, messages.size(), 24, total);
@@ -699,7 +699,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createDefaultTestStream(nc);
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
-            prepHandlerWait(type, handler);
             JetStreamSubscription sub = setup.setup(nc, jsm, js, handler);
             if (sub.getDispatcher() == null) {
                 if (type == TYPE_ERROR) {
@@ -713,21 +712,12 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-    private void prepHandlerWait(int type, TestHandler handler) {
-        if (type == TYPE_ERROR) {
-            handler.prepForPullStatusError();
-        }
-        else if (type == TYPE_WARNING) {
-            handler.prepForPullStatusWarning();
-        }
-    }
-
     private void checkHandler(String statusText, int type, TestHandler handler) {
         if (type == TYPE_ERROR) {
-            handler.pullStatusErrorOrWait(statusText, 2000);
+            assertTrue(handler.pullStatusErrorOrWait(statusText, 2000));
         }
         else if (type == TYPE_WARNING) {
-            handler.pullStatusWarningOrWait(statusText, 2000);
+            assertTrue(handler.pullStatusWarningOrWait(statusText, 2000));
         }
     }
 
@@ -856,6 +846,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(null, so);
             sub.pullExpiresIn(1, 10000);
             jsm.deleteConsumer(STREAM, durable(1));
+            js.publish(SUBJECT, null);
             return sub;
         });
     }
@@ -869,6 +860,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(null, d, m -> {}, so);
             sub.pullExpiresIn(1, 10000);
             jsm.deleteConsumer(STREAM, durable(1));
+            js.publish(SUBJECT, null);
             return sub;
         });
     }

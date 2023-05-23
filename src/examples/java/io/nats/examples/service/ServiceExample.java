@@ -45,8 +45,6 @@ public class ServiceExample {
             Endpoint epEcho = Endpoint.builder()
                 .name("EchoEndpoint")
                 .subject("echo")
-                .schemaRequest("echo schema request info")   // optional
-                .schemaResponse("echo schema response info") // optional
                 .build();
 
             // Sort is going to be grouped. This will affect the actual subject
@@ -71,8 +69,6 @@ public class ServiceExample {
                 .group(sortGroup)
                 .endpointName("SortEndpointAscending")
                 .endpointSubject("ascending")
-                .endpointSchemaRequest("sort ascending schema request info")   // optional
-                .endpointSchemaResponse("sort ascending schema response info") // optional
                 .handler(msg -> handleSortAscending(nc, msg, "S1A"))
                 .build();
 
@@ -88,7 +84,6 @@ public class ServiceExample {
             Service service1 = new ServiceBuilder()
                 .connection(nc)
                 .name("Service1")
-                .apiUrl("Service1 Api Url")          // optional
                 .description("Service1 Description") // optional
                 .version("0.0.1")
                 .addServiceEndpoint(seEcho1)
@@ -122,7 +117,7 @@ public class ServiceExample {
                 String subject = "echo";
                 CompletableFuture<Message> reply = nc.request(subject, request.getBytes());
                 String response = new String(reply.get().getData());
-                System.out.println("" + x + ". Called " + subject + " with [" + request + "] Received " + response);
+                System.out.println(x + ". Called " + subject + " with [" + request + "] Received " + response);
             }
 
             // sort subjects are formed this way because the endpoints have groups
@@ -164,18 +159,6 @@ public class ServiceExample {
 
             infoResponses = discovery.info("Service2");
             printDiscovery("Info", "Service2", infoResponses);
-
-            // ----------------------------------------------------------------------------------------------------
-            // schema discover variations
-            // ----------------------------------------------------------------------------------------------------
-            List<SchemaResponse> schemaResponsList = discovery.schema();
-            printDiscovery("Schema", "[All]", schemaResponsList);
-
-            schemaResponsList = discovery.schema("Service1");
-            printDiscovery("Schema", "Service1", schemaResponsList);
-
-            schemaResponsList = discovery.schema("Service2");
-            printDiscovery("Schema", "Service2", schemaResponsList);
 
             // ----------------------------------------------------------------------------------------------------
             // stats discover variations

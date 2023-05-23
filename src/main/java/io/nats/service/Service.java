@@ -37,7 +37,6 @@ import static io.nats.client.support.Validator.nullOrEmpty;
 public class Service {
     public static final String SRV_PING = "PING";
     public static final String SRV_INFO = "INFO";
-    public static final String SRV_SCHEMA = "SCHEMA";
     public static final String SRV_STATS = "STATS";
     public static final String DEFAULT_SERVICE_PREFIX = "$SRV.";
 
@@ -48,7 +47,6 @@ public class Service {
     private final List<Dispatcher> dInternals;
     private final PingResponse pingResponse;
     private final InfoResponse infoResponse;
-    private final SchemaResponse schemaResponse;
 
     private final Object stopLock;
     private CompletableFuture<Boolean> doneFuture;
@@ -66,7 +64,6 @@ public class Service {
         // ! also while we are here, we need to collect the endpoints for the SchemaResponse
         Dispatcher dTemp = null;
         List<String> infoSubjects = new ArrayList<>();
-        List<EndpointResponse> schemaEndpoints = new ArrayList<>();
         serviceContexts = new HashMap<>();
         for (ServiceEndpoint se : b.serviceEndpoints.values()) {
             if (se.getDispatcher() == null) {
@@ -79,7 +76,6 @@ public class Service {
                 serviceContexts.put(se.getName(), new EndpointContext(conn, null, true, se));
             }
             infoSubjects.add(se.getSubject());
-            schemaEndpoints.add(new EndpointResponse(se.getName(), se.getSubject(), se.getEndpoint().getSchema()));
         }
         if (dTemp != null) {
             dInternals.add(dTemp);
@@ -88,7 +84,6 @@ public class Service {
         // build static responses
         pingResponse = new PingResponse(id, b.name, b.version, b.metadata);
         infoResponse = new InfoResponse(id, b.name, b.version, b.metadata, b.description, infoSubjects);
-        schemaResponse = new SchemaResponse(id, b.name, b.version, b.metadata, b.apiUrl, schemaEndpoints);
 
         if (b.pingDispatcher == null || b.infoDispatcher == null || b.schemaDispatcher == null || b.statsDispatcher == null) {
             dTemp = conn.createDispatcher();
@@ -101,7 +96,6 @@ public class Service {
         discoveryContexts = new ArrayList<>();
         addDiscoveryContexts(SRV_PING, pingResponse, b.pingDispatcher, dTemp);
         addDiscoveryContexts(SRV_INFO, infoResponse, b.infoDispatcher, dTemp);
-        addDiscoveryContexts(SRV_SCHEMA, schemaResponse, b.schemaDispatcher, dTemp);
         addStatsContexts(b.statsDispatcher, dTemp);
     }
 
@@ -132,7 +126,7 @@ public class Service {
 
     private Endpoint internalEndpoint(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
         String subject = toDiscoverySubject(discoveryName, optionalServiceNameSegment, optionalServiceIdSegment);
-        return new Endpoint(subject, subject, null, null, false);
+        return new Endpoint(subject, subject, null, false);
     }
 
     static String toDiscoverySubject(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
@@ -258,10 +252,6 @@ public class Service {
         return infoResponse.getDescription();
     }
 
-    public String getApiUrl() {
-        return schemaResponse.getApiUrl();
-    }
-
     public Duration getDrainTimeout() {
         return drainTimeout;
     }
@@ -272,10 +262,6 @@ public class Service {
 
     public InfoResponse getInfoResponse() {
         return infoResponse;
-    }
-
-    public SchemaResponse getSchemaResponse() {
-        return schemaResponse;
     }
 
     public StatsResponse getStatsResponse() {
@@ -298,8 +284,6 @@ public class Service {
         JsonUtils.addField(sb, NAME, infoResponse.getName());
         JsonUtils.addField(sb, VERSION, infoResponse.getVersion());
         JsonUtils.addField(sb, DESCRIPTION, infoResponse.getDescription());
-        JsonUtils.addField(sb, API_URL, schemaResponse.getApiUrl());
-        JsonUtils.addJsons(sb, ENDPOINTS, schemaResponse.getEndpoints());
         return endJson(sb).toString();
     }
 }

@@ -107,16 +107,6 @@ public class ServiceEndpoint {
             return this;
         }
 
-        public Builder endpointSchemaRequest(String schemaRequest) {
-            endpointBuilder.schemaRequest(schemaRequest);
-            return this;
-        }
-
-        public Builder endpointSchemaResponse(String schemaResponse) {
-            endpointBuilder.schemaResponse(schemaResponse);
-            return this;
-        }
-
         public Builder handler(ServiceMessageHandler handler) {
             this.handler = handler;
             return this;

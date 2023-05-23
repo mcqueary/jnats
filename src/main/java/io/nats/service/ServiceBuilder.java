@@ -50,11 +50,6 @@ public class ServiceBuilder {
         return this;
     }
 
-    public ServiceBuilder apiUrl(String apiUrl) {
-        this.apiUrl = apiUrl;
-        return this;
-    }
-
     public ServiceBuilder addServiceEndpoint(ServiceEndpoint endpoint) {
         serviceEndpoints.put(endpoint.getName(), endpoint);
         return this;

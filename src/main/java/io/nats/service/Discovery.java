@@ -90,24 +90,6 @@ public class Discovery {
     }
 
     // ----------------------------------------------------------------------------------------------------
-    // schema
-    // ----------------------------------------------------------------------------------------------------
-    public List<SchemaResponse> schema() {
-        return schema(null);
-    }
-
-    public List<SchemaResponse> schema(String serviceName) {
-        List<SchemaResponse> list = new ArrayList<>();
-        discoverMany(SRV_SCHEMA, serviceName, jsonBytes -> list.add(new SchemaResponse(jsonBytes)));
-        return list;
-    }
-
-    public SchemaResponse schema(String serviceName, String serviceId) {
-        byte[] jsonBytes = discoverOne(SRV_SCHEMA, serviceName, serviceId);
-        return jsonBytes == null ? null : new SchemaResponse(jsonBytes);
-    }
-
-    // ----------------------------------------------------------------------------------------------------
     // stats
     // ----------------------------------------------------------------------------------------------------
     public List<StatsResponse> stats() {

@@ -67,15 +67,11 @@ public class ServiceTests extends JetStreamTestBase {
                 Endpoint endEcho = Endpoint.builder()
                     .name(ECHO_ENDPOINT_NAME)
                     .subject(ECHO_ENDPOINT_SUBJECT)
-                    .schemaRequest("echo schema request info")   // optional
-                    .schemaResponse("echo schema response info") // optional
                     .build();
 
                 Endpoint endSortA = Endpoint.builder()
                     .name(SORT_ENDPOINT_ASCENDING_NAME)
                     .subject(SORT_ENDPOINT_ASCENDING_SUBJECT)
-                    .schemaRequest("sort ascending schema request info")   // optional
-                    .schemaResponse("sort ascending schema response info") // optional
                     .build();
 
                 // constructor coverage
@@ -113,8 +109,6 @@ public class ServiceTests extends JetStreamTestBase {
                     .group(sortGroup)
                     .endpointName(endSortA.getName())
                     .endpointSubject(endSortA.getSubject())
-                    .endpointSchemaRequest(endSortA.getSchema().getRequest())
-                    .endpointSchemaResponse(endSortA.getSchema().getResponse())
                     .handler(new SortHandlerA(serviceNc2))
                     .build();
 
@@ -163,8 +157,6 @@ public class ServiceTests extends JetStreamTestBase {
                 PingResponse pingResponse2 = service2.getPingResponse();
                 InfoResponse infoResponse1 = service1.getInfoResponse();
                 InfoResponse infoResponse2 = service2.getInfoResponse();
-                SchemaResponse schemaResponse1 = service1.getSchemaResponse();
-                SchemaResponse schemaResponse2 = service2.getSchemaResponse();
                 StatsResponse statsResponse1 = service1.getStatsResponse();
                 StatsResponse statsResponse2 = service2.getStatsResponse();
                 EndpointResponse[] endpointResponseArray1 = new EndpointResponse[]{
@@ -183,8 +175,6 @@ public class ServiceTests extends JetStreamTestBase {
                 assertEquals(serviceId2, pingResponse2.getId());
                 assertEquals(serviceId1, infoResponse1.getId());
                 assertEquals(serviceId2, infoResponse2.getId());
-                assertEquals(serviceId1, schemaResponse1.getId());
-                assertEquals(serviceId2, schemaResponse2.getId());
                 assertEquals(serviceId1, statsResponse1.getId());
                 assertEquals(serviceId2, statsResponse2.getId());
 
@@ -226,21 +216,6 @@ public class ServiceTests extends JetStreamTestBase {
                 verifyDiscovery(discovery.info(SERVICE_NAME_1, serviceId1), infoVerifier, infoResponse1);
                 assertNull(discovery.info(SERVICE_NAME_1, "badId"));
                 assertNull(discovery.info("bad", "badId"));
-
-                // schema discovery
-                Verifier schemaVerifier = (expected, response) -> {
-                    assertTrue(response instanceof SchemaResponse);
-                    SchemaResponse exp = (SchemaResponse) expected;
-                    SchemaResponse r = (SchemaResponse) response;
-                    assertEquals(exp.getApiUrl(), r.getApiUrl());
-                    assertEquals(exp.getEndpoints(), r.getEndpoints());
-                };
-                verifyDiscovery(discovery.schema(), schemaVerifier, schemaResponse1, schemaResponse2);
-                verifyDiscovery(discovery.schema(SERVICE_NAME_1), schemaVerifier, schemaResponse1);
-                verifyDiscovery(discovery.schema(SERVICE_NAME_2), schemaVerifier, schemaResponse2);
-                verifyDiscovery(discovery.schema(SERVICE_NAME_1, serviceId1), schemaVerifier, schemaResponse1);
-                assertNull(discovery.schema(SERVICE_NAME_1, "badId"));
-                assertNull(discovery.schema("bad", "badId"));
 
                 // stats discovery
                 Verifier statsVerifier = (expected, response) -> {
@@ -531,7 +506,6 @@ public class ServiceTests extends JetStreamTestBase {
         }
     }
 
-    @SuppressWarnings("resource")
     @Test
     public void testServiceBuilderConstruction() {
         Options options = new Options.Builder().build();
@@ -550,15 +524,12 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(ServiceBuilder.DEFAULT_DRAIN_TIMEOUT, service.getDrainTimeout());
         assertEquals("1.0.0", service.getVersion());
         assertNull(service.getDescription());
-        assertNull(service.getApiUrl());
 
         service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se)
-            .apiUrl("apiUrl")
             .description("desc")
             .drainTimeout(Duration.ofSeconds(1))
             .build();
         assertEquals("desc", service.getDescription());
-        assertEquals("apiUrl", service.getApiUrl());
         assertEquals(Duration.ofSeconds(1), service.getDrainTimeout());
 
         assertThrows(IllegalArgumentException.class, () -> Service.builder().name(null));
@@ -743,65 +714,20 @@ public class ServiceTests extends JetStreamTestBase {
         Endpoint e = new Endpoint(NAME);
         assertEquals(NAME, e.getName());
         assertEquals(NAME, e.getSubject());
-        assertNull(e.getSchema());
         assertEquals(e, Endpoint.builder().endpoint(e).build());
         assertNull(e.getMetadata());
 
         e = new Endpoint(NAME, SUBJECT);
         assertEquals(NAME, e.getName());
         assertEquals(SUBJECT, e.getSubject());
-        assertNull(e.getSchema());
-        assertEquals(e, Endpoint.builder().endpoint(e).build());
-
-        e = new Endpoint(NAME, SUBJECT, "schema-request", null);
-        assertEquals(NAME, e.getName());
-        assertEquals(SUBJECT, e.getSubject());
-        assertEquals("schema-request", e.getSchema().getRequest());
-        assertNull(e.getSchema().getResponse());
-        assertEquals(e, Endpoint.builder().endpoint(e).build());
-
-        e = new Endpoint(NAME, SUBJECT, null, "schema-response");
-        assertEquals(NAME, e.getName());
-        assertEquals(SUBJECT, e.getSubject());
-        assertNull(e.getSchema().getRequest());
-        assertEquals("schema-response", e.getSchema().getResponse());
         assertEquals(e, Endpoint.builder().endpoint(e).build());
 
         e = Endpoint.builder()
             .name(NAME).subject(SUBJECT)
-            .schemaRequest("schema-request").schemaResponse("schema-response")
             .build();
         assertEquals(NAME, e.getName());
         assertEquals(SUBJECT, e.getSubject());
-        assertEquals("schema-request", e.getSchema().getRequest());
-        assertEquals("schema-response", e.getSchema().getResponse());
         assertEquals(e, Endpoint.builder().endpoint(e).build());
-
-        e = Endpoint.builder()
-            .name(NAME).subject(SUBJECT)
-            .schema(e.getSchema())
-            .build();
-        assertEquals(NAME, e.getName());
-        assertEquals(SUBJECT, e.getSubject());
-        assertEquals("schema-request", e.getSchema().getRequest());
-        assertEquals("schema-response", e.getSchema().getResponse());
-
-        String j = e.toJson();
-        assertTrue(j.startsWith("{"));
-        assertTrue(j.contains("\"name\":\"name\""));
-        assertTrue(j.contains("\"subject\":\"subject\""));
-        assertTrue(j.contains("\"schema\":{"));
-        assertTrue(j.contains("\"request\":\"schema-request\""));
-        assertTrue(j.contains("\"response\":\"schema-response\""));
-        assertEquals(toKey(Endpoint.class) + j, e.toString());
-
-        e = Endpoint.builder()
-            .name(NAME).subject(SUBJECT)
-            .schema(null)
-            .build();
-        assertEquals(NAME, e.getName());
-        assertEquals(SUBJECT, e.getSubject());
-        assertNull(e.getSchema());
 
         Map<String, String> metadata = new HashMap<>();
         e = Endpoint.builder()
@@ -853,41 +779,6 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testSchemaConstruction() {
-        EqualsVerifier.simple().forClass(Schema.class).verify();
-        Schema s1 = new Schema("request", "response");
-        assertEquals("request", s1.getRequest());
-        assertEquals("response", s1.getResponse());
-
-        assertNull(Schema.optionalInstance(null, ""));
-        assertNull(Schema.optionalInstance("", null));
-        assertNull(Schema.optionalInstance(null));
-
-        Schema s2 = new Schema("request", null);
-        assertEquals("request", s2.getRequest());
-        assertNull(s2.getResponse());
-
-        s2 = new Schema(null, "response");
-        assertNull(s2.getRequest());
-        assertEquals("response", s2.getResponse());
-
-        s2 = new Schema(s1.toJsonValue());
-        assertEquals(s1, s2);
-
-        s2 = Schema.optionalInstance(s1.toJsonValue());
-        assertEquals(s1, s2);
-
-        String j = s1.toJson();
-        assertTrue(j.startsWith("{"));
-        assertTrue(j.contains("\"request\":\"request\""));
-        assertTrue(j.contains("\"response\":\"response\""));
-        String s = s1.toString();
-        assertTrue(s.startsWith(toKey(Schema.class)));
-        assertTrue(s.contains("\"request\":\"request\""));
-        assertTrue(s.contains("\"response\":\"response\""));
-    }
-
-    @Test
     public void testEndpointResponseConstruction() {
         JsonValue data = new JsonValue("data");
         EqualsVerifier.simple().forClass(EndpointResponse.class)
@@ -898,7 +789,6 @@ public class ServiceTests extends JetStreamTestBase {
         EndpointResponse er = new EndpointResponse("name", "subject", 0, 0, 0, null, null, zdt);
         assertEquals("name", er.getName());
         assertEquals("subject", er.getSubject());
-        assertNull(er.getSchema());
         assertNull(er.getLastError());
         assertNull(er.getData());
         assertEquals(0, er.getNumRequests());
@@ -910,7 +800,6 @@ public class ServiceTests extends JetStreamTestBase {
         er = new EndpointResponse("name", "subject", 2, 4, 10, "lastError", data, zdt);
         assertEquals("name", er.getName());
         assertEquals("subject", er.getSubject());
-        assertNull(er.getSchema());
         assertEquals("lastError", er.getLastError());
         assertEquals("\"data\"", er.getData().toString());
         assertEquals(2, er.getNumRequests());
@@ -923,39 +812,12 @@ public class ServiceTests extends JetStreamTestBase {
         assertTrue(j.startsWith("{"));
         assertTrue(j.contains("\"name\":\"name\""));
         assertTrue(j.contains("\"subject\":\"subject\""));
-        assertFalse(j.contains("\"schema\":"));
         assertTrue(j.contains("\"last_error\":\"lastError\""));
         assertTrue(j.contains("\"data\":\"data\""));
         assertTrue(j.contains("\"num_requests\":2"));
         assertTrue(j.contains("\"num_errors\":4"));
         assertTrue(j.contains("\"processing_time\":10"));
         assertTrue(j.contains("\"average_processing_time\":5"));
-        assertEquals(toKey(EndpointResponse.class) + j, er.toString());
-
-        Schema schema = new Schema("req", "res");
-        er = new EndpointResponse("name", "subject", schema);
-        assertEquals("name", er.getName());
-        assertEquals("subject", er.getSubject());
-        assertEquals(schema, er.getSchema());
-        assertNull(er.getLastError());
-        assertNull(er.getData());
-        assertEquals(0, er.getNumRequests());
-        assertEquals(0, er.getNumErrors());
-        assertEquals(0, er.getProcessingTime());
-        assertEquals(0, er.getAverageProcessingTime());
-        assertNull(er.getStarted());
-
-        j = er.toJson();
-        assertTrue(j.startsWith("{"));
-        assertTrue(j.contains("\"name\":\"name\""));
-        assertTrue(j.contains("\"subject\":\"subject\""));
-        assertTrue(j.contains("\"schema\":{\"request\":\"req\",\"response\":\"res\"}"));
-        assertFalse(j.contains("\"last_error\":"));
-        assertFalse(j.contains("\"data\":"));
-        assertFalse(j.contains("\"num_requests\":"));
-        assertFalse(j.contains("\"num_errors\":"));
-        assertFalse(j.contains("\"processing_time\":"));
-        assertFalse(j.contains("\"average_processing_time\":"));
         assertEquals(toKey(EndpointResponse.class) + j, er.toString());
     }
 
@@ -1136,12 +998,8 @@ public class ServiceTests extends JetStreamTestBase {
         validateApiInOutInfoResponse(ir2);
 
         List<EndpointResponse> endpoints = new ArrayList<>();
-        endpoints.add(new EndpointResponse("endName0", "endSubject0", new Schema("endSchemaRequest0", "endSchemaResponse0")));
-        endpoints.add(new EndpointResponse("endName1", "endSubject1", new Schema("endSchemaRequest1", "endSchemaResponse1")));
-        SchemaResponse sch1 = new SchemaResponse("id", "name", "0.0.0", metadata, "apiUrl", endpoints);
-        SchemaResponse sch2 = new SchemaResponse(sch1.toJson().getBytes());
-        validateApiInOutSchemaResponse(sch1);
-        validateApiInOutSchemaResponse(sch2);
+        endpoints.add(new EndpointResponse("endName0", "endSubject0"));
+        endpoints.add(new EndpointResponse("endName1", "endSubject1"));
 
         ZonedDateTime serviceStarted = DateTimeUtils.gmtNow();
         ZonedDateTime[] endStarteds = new ZonedDateTime[2];
@@ -1162,9 +1020,6 @@ public class ServiceTests extends JetStreamTestBase {
 
         EqualsVerifier.simple().forClass(PingResponse.class).verify();
         EqualsVerifier.simple().forClass(InfoResponse.class).verify();
-        EqualsVerifier.simple().forClass(SchemaResponse.class)
-            .withPrefabValues(EndpointResponse.class, endpoints.get(0), endpoints.get(1))
-            .verify();
         EqualsVerifier.simple().forClass(StatsResponse.class)
             .withPrefabValues(EndpointResponse.class, statsList.get(0), statsList.get(1))
             .verify();
@@ -1188,19 +1043,6 @@ public class ServiceTests extends JetStreamTestBase {
             assertEquals("lastError" + x, e.getLastError());
             assertEquals(new TestStatsData(data[x]), new TestStatsData(e.getData()));
             assertEquals(endStarteds[x], e.getStarted());
-        }
-    }
-
-    private static void validateApiInOutSchemaResponse(SchemaResponse r) {
-        validateApiInOutServiceResponse(r, SchemaResponse.TYPE);
-        assertEquals("apiUrl", r.getApiUrl());
-        assertEquals(2, r.getEndpoints().size());
-        for (int x = 0; x < 2; x++) {
-            EndpointResponse e = r.getEndpoints().get(x);
-            assertEquals("endName" + x, e.getName());
-            assertEquals("endSubject" + x, e.getSubject());
-            assertEquals("endSchemaRequest" + x, e.getSchema().getRequest());
-            assertEquals("endSchemaResponse" + x, e.getSchema().getResponse());
         }
     }
 
