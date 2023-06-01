@@ -34,29 +34,29 @@ public class ExampleUtils {
 
     public static final ErrorListener EXAMPLE_ERROR_LISTENER = new ErrorListenerLoggerImpl();
 
-    public static Options createExampleOptions(String[] args) throws Exception {
+    public static Options createExampleOptions(String[] args) {
         String server = getServer(args);
         return createExampleOptions(server, false, EXAMPLE_ERROR_LISTENER, EXAMPLE_CONNECTION_LISTENER);
     }
 
-    public static Options createExampleOptions(String[] args, boolean allowReconnect) throws Exception {
+    public static Options createExampleOptions(String[] args, boolean allowReconnect) {
         String server = getServer(args);
         return createExampleOptions(server, allowReconnect, EXAMPLE_ERROR_LISTENER, EXAMPLE_CONNECTION_LISTENER);
     }
 
-    public static Options createExampleOptions(String server) throws Exception {
+    public static Options createExampleOptions(String server) {
         return createExampleOptions(server, false, EXAMPLE_ERROR_LISTENER, EXAMPLE_CONNECTION_LISTENER);
     }
 
-    public static Options createExampleOptions(String server, ErrorListener el) throws Exception {
+    public static Options createExampleOptions(String server, ErrorListener el) {
         return createExampleOptions(server, false, el, EXAMPLE_CONNECTION_LISTENER);
     }
 
-    public static Options createExampleOptions(String server, boolean allowReconnect) throws Exception {
+    public static Options createExampleOptions(String server, boolean allowReconnect) {
         return createExampleOptions(server, allowReconnect, EXAMPLE_ERROR_LISTENER, EXAMPLE_CONNECTION_LISTENER);
     }
 
-    public static Options createExampleOptions(String server, boolean allowReconnect, ErrorListener el, ConnectionListener cl) throws Exception {
+    public static Options createExampleOptions(String server, boolean allowReconnect, ErrorListener el, ConnectionListener cl) {
 
         if (el == null) { el = new ErrorListener() {}; }
 
@@ -75,7 +75,13 @@ public class ExampleUtils {
         }
 
         if (System.getenv("NATS_NKEY") != null && System.getenv("NATS_NKEY") != "") {
-            AuthHandler handler = new ExampleAuthHandler(System.getenv("NATS_NKEY"));
+            AuthHandler handler = null;
+            try {
+                handler = new ExampleAuthHandler(System.getenv("NATS_NKEY"));
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
             builder.authHandler(handler);
         } else if (System.getenv("NATS_CREDS") != null && System.getenv("NATS_CREDS") != "") {
             builder.authHandler(Nats.credentials(System.getenv("NATS_CREDS")));

@@ -25,7 +25,7 @@ import java.util.concurrent.TimeoutException;
  * The NATS library uses a Message object to encapsulate incoming messages. Applications
  * publish and send requests with raw strings and byte[] but incoming messages can have a few
  * values, so they need a wrapper.
- * 
+ *
  * <p>The byte[] returned by {@link #getData() getData()} is not shared with any library code
  * and is safe to manipulate.
  */
@@ -135,7 +135,8 @@ public interface Message {
 	void nakWithDelay(long nakDelayMillis);
 
 	/**
-	 * term prevents this message from every being delivered regardless of maxDeliverCount.
+	 * term instructs the server to stop redelivery of this message without acknowledging it as
+	 * successfully processed.
 	 */
 	void term();
 
@@ -145,9 +146,15 @@ public interface Message {
 	void inProgress();
 
 	/**
-	 * Checks if a message is from Jetstream or is a standard message.
+	 * Checks if a message is from JetStream or is a standard message.
 	 * @return true if the message is from JetStream.
 	 */
 	boolean isJetStream();
 
+	/**
+	 * The number of bytes the server counts for the message when calculating byte counts.
+	 * Only applies to JetStream messages received from the server.
+	 * @return the consumption byte count or -1 if the message implementation does not support this method
+	 */
+	long consumeByteCount();
 }

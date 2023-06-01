@@ -111,6 +111,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      */
     @Override
     public PurgeResponse purgeStream(String streamName, PurgeOptions options) throws IOException, JetStreamApiException {
+        validateNotNull(options, "Purge Options");
         String subj = String.format(JSAPI_STREAM_PURGE, streamName);
         byte[] body = options.toJson().getBytes(StandardCharsets.UTF_8);
         Message resp = makeRequestResponseRequired(subj, body, jso.getRequestTimeout());

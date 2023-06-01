@@ -181,6 +181,7 @@ public abstract class JwtUtils {
      * @param name optional human-readable name.
      * @param expiration optional but recommended duration, when the generated jwt needs to expire. If not set, JWT will not expire.
      * @param issuedAt the current epoch seconds.
+     * @param accSigningKeyPub the account signing key
      * @param nats the generic nats claim
      * @throws GeneralSecurityException if SHA-256 MessageDigest is missing, or if the signingKey can not be used for signing.
      * @throws IOException if signingKey sign method throws this exception.

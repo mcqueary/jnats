@@ -43,7 +43,7 @@ class PushMessageManager extends MessageManager {
                        boolean queueMode,
                        boolean syncMode)
     {
-        super(conn, syncMode);
+        super(conn, so, syncMode);
         this.js = js;
         this.stream = stream;
         this.originalCc = originalCc;

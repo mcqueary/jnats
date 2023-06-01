@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamStatusException;
 import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
+import io.nats.client.SubscribeOptions;
 import io.nats.client.support.Status;
 
 import static io.nats.client.impl.MessageManager.ManageResult.*;
@@ -25,12 +26,14 @@ import static io.nats.client.support.Status.*;
 
 class PullMessageManager extends MessageManager {
 
-    protected long pendingMessages;
+    protected int pendingMessages;
     protected long pendingBytes;
     protected boolean trackingBytes;
+    protected boolean raiseStatusWarnings;
+    protected TrackPendingListener trackPendingListener;
 
-    protected PullMessageManager(NatsConnection conn, boolean syncMode) {
-        super(conn, syncMode);
+    protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
+        super(conn, so, syncMode);
         trackingBytes = false;
         pendingMessages = 0;
         pendingBytes = 0;
@@ -43,8 +46,10 @@ class PullMessageManager extends MessageManager {
     }
 
     @Override
-    protected void startPullRequest(PullRequestOptions pro) {
+    protected void startPullRequest(String pullId, PullRequestOptions pro, boolean raiseStatusWarnings, TrackPendingListener trackPendingListener) {
         synchronized (stateChangeLock) {
+            this.raiseStatusWarnings = raiseStatusWarnings;
+            this.trackPendingListener = trackPendingListener;
             pendingMessages += pro.getBatchSize();
             pendingBytes += pro.getMaxBytes();
             trackingBytes = (pendingBytes > 0);
@@ -58,7 +63,7 @@ class PullMessageManager extends MessageManager {
         }
     }
 
-    private void trackPending(long m, long b) {
+    private void trackPending(int m, long b) {
         synchronized (stateChangeLock) {
             pendingMessages -= m;
             boolean zero = pendingMessages < 1;
@@ -74,6 +79,9 @@ class PullMessageManager extends MessageManager {
                     shutdownHeartbeatTimer();
                 }
             }
+            if (trackPendingListener != null) {
+                trackPendingListener.track(pendingMessages, pendingBytes, trackingBytes);
+            }
         }
     }
 
@@ -85,7 +93,7 @@ class PullMessageManager extends MessageManager {
 
         // normal js message
         if (status == null) {
-            trackPending(1, bytesInMessage(msg));
+            trackPending(1, msg.consumeByteCount());
             return true;
         }
 
@@ -99,11 +107,11 @@ class PullMessageManager extends MessageManager {
             String s = h.getFirst(NATS_PENDING_MESSAGES);
             if (s != null) {
                 try {
-                    long m = Long.parseLong(s);
+                    int m = Integer.parseInt(s);
                     long b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
                     trackPending(m, b);
                 }
-                catch (Exception ignore) {}
+                catch (NumberFormatException ignore) {} // shouldn't happen but don't fail
             }
         }
 
@@ -124,13 +132,18 @@ class PullMessageManager extends MessageManager {
         switch (status.getCode()) {
             case NOT_FOUND_CODE:
             case REQUEST_TIMEOUT_CODE:
+                if (raiseStatusWarnings) {
+                    conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
+                }
                 return TERMINUS;
 
             case CONFLICT_CODE:
                 // sometimes just a warning
                 String statMsg = status.getMessage();
                 if (statMsg.startsWith("Exceeded Max")) {
-                    conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
+                    if (raiseStatusWarnings) {
+                        conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
+                    }
                     return STATUS;
                 }
 
@@ -148,13 +161,5 @@ class PullMessageManager extends MessageManager {
             throw new JetStreamStatusException(sub, status);
         }
         return ERROR;
-    }
-
-    private long bytesInMessage(Message msg) {
-        NatsMessage nm = (NatsMessage) msg;
-        return nm.subject.length()
-            + nm.headerLen
-            + nm.dataLen
-            + (nm.replyTo == null ? 0 : nm.replyTo.length());
     }
 }

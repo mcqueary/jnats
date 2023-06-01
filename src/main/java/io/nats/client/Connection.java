@@ -117,8 +117,7 @@ public interface Connection extends AutoCloseable {
      * </pre>
      *
      * where the sender creates a byte array immediately before calling publish.
-     *
-     * See {@link #publish(String, String, byte[]) publish()} for more details on 
+     * See {@link #publish(String, String, byte[]) publish()} for more details on
      * publish during reconnect.
      *
      * @param subject the subject to send the message to
@@ -139,7 +138,6 @@ public interface Connection extends AutoCloseable {
      * </pre>
      *
      * where the sender creates a byte array immediately before calling publish.
-     *
      * See {@link #publish(String, String, byte[]) publish()} for more details on
      * publish during reconnect.
      *
@@ -213,7 +211,6 @@ public interface Connection extends AutoCloseable {
      * </pre>
      *
      * where the sender creates a byte array immediately before calling publish.
-     *
      * See {@link #publish(String, String, byte[]) publish()} for more details on
      * publish during reconnect.
      *
@@ -426,13 +423,11 @@ public interface Connection extends AutoCloseable {
      * Flush the connection's buffer of outgoing messages, including sending a
      * protocol message to and from the server. Passing null is equivalent to
      * passing 0, which will wait forever.
-     * 
      * If called while the connection is closed, this method will immediately
      * throw a TimeoutException, regardless of the timeout.
-     * 
      * If called while the connection is disconnected due to network issues this
      * method will wait for up to the timeout for a reconnect or close.
-     * 
+     *
      * @param timeout The time to wait for the flush to succeed, pass 0 to wait
      *                    forever.
      * @throws TimeoutException if the timeout is exceeded
@@ -442,23 +437,19 @@ public interface Connection extends AutoCloseable {
 
     /**
      * Drain tells the connection to process in flight messages before closing.
-     * 
-     * Drain initially drains all of the consumers, stopping incoming messages.
+     * Drain initially drains all the consumers, stopping incoming messages.
      * Next, publishing is halted and a flush call is used to insure all published
      * messages have reached the server.
-     * Finally the connection is closed.
-     * 
+     * Finally, the connection is closed.
      * In order to drain subscribers, an unsub protocol message is sent to the server followed by a flush.
      * These two steps occur before drain returns. The remaining steps occur in a background thread.
      * This method tries to manage the timeout properly, so that if the timeout is 1 second, and the flush
      * takes 100ms, the remaining steps have 900ms in the background thread.
-     * 
      * The connection will try to let all messages be drained, but when the timeout is reached
      * the connection is closed and any outstanding dispatcher threads are interrupted.
-     * 
-     * A future is used to allow this call to be treated as synchronous or asynchronous as
-     * needed by the application. The value of the future will be true if all of the subscriptions
-     * were drained in the timeout, and false otherwise. The future is completed after the connection
+     * A future allows this call to be treated as synchronous or asynchronous as
+     * needed by the application. The value of the future will be true if all the subscriptions
+     * were drained in the timeout, and false otherwise. The future completes after the connection
      * is closed, so any connection handler notifications will happen before the future completes.
      * 
      * @param timeout The time to wait for the drain to succeed, pass 0 to wait
@@ -475,7 +466,6 @@ public interface Connection extends AutoCloseable {
     /**
      * Close the connection and release all blocking calls like {@link #flush flush}
      * and {@link Subscription#nextMessage(Duration) nextMessage}.
-     * 
      * If close() is called after {@link #drain(Duration) drain} it will wait up to the connection timeout
      * to return, but it will not initiate a close. The drain takes precedence and will initiate the close.
      * 
@@ -563,6 +553,54 @@ public interface Connection extends AutoCloseable {
     Duration RTT() throws IOException;
 
     /**
+     * Gets a stream context.
+     * @param streamName the stream for the context
+     * @return a StreamContext instance.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    StreamContext streamContext(String streamName) throws IOException, JetStreamApiException;
+
+    /**
+     * Gets a stream context.
+     * @param streamName the stream for the context
+     * @param options JetStream options.
+     * @return a StreamContext instance.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    StreamContext streamContext(String streamName, JetStreamOptions options) throws IOException, JetStreamApiException;
+
+    /**
+     * Create a consumer context for a specific named stream and specific named consumer.
+     * Verifies that the stream and consumer exist.
+     * EXPERIMENTAL API SUBJECT TO CHANGE
+     * @param streamName the name of the stream
+     * @param consumerName the name of the consumer
+     * @return a ConsumerContext object
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    ConsumerContext consumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
+
+    /**
+     * Create a consumer context for a specific named stream and specific named consumer.
+     * Verifies that the stream and consumer exist.
+     * EXPERIMENTAL API SUBJECT TO CHANGE
+     * @param streamName the name of the stream
+     * @param consumerName the name of the consumer
+     * @param options JetStream options.
+     * @return a ConsumerContext object
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    ConsumerContext consumerContext(String streamName, String consumerName, JetStreamOptions options) throws IOException, JetStreamApiException;
+
+    /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
      * and consumers.
      * @return a JetStream instance.
@@ -599,7 +637,7 @@ public interface Connection extends AutoCloseable {
     JetStreamManagement jetStreamManagement(JetStreamOptions options) throws IOException;
 
     /**
-     * Gets a context for working with an Key Value bucket
+     * Gets a context for working with a Key Value bucket
      * @param bucketName the bucket name
      * @return a KeyValue instance.
      * @throws IOException various IO exception such as timeout or interruption

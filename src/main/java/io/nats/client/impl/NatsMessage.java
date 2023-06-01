@@ -362,6 +362,17 @@ public class NatsMessage implements Message {
         return false;  // overridden in NatsJetStreamMessage
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public long consumeByteCount() {
+        return subject == null ? 0 : subject.length()
+            + headerLen
+            + dataLen
+            + (replyTo == null ? 0 : replyTo.length());
+    }
+
     @Override
     public String toString() {
         if (subject == null) {

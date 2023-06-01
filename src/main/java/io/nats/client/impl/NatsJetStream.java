@@ -230,7 +230,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     MessageManagerFactory _pushMessageManagerFactory = PushMessageManager::new;
     MessageManagerFactory _pushOrderedMessageManagerFactory = OrderedMessageManager::new;
     MessageManagerFactory _pullMessageManagerFactory =
-        (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new PullMessageManager(mmConn, mmSyncMode);
+        (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new PullMessageManager(mmConn, mmSo, mmSyncMode);
 
     JetStreamSubscription createSubscription(String subject,
                                              String queueName,
@@ -631,29 +631,22 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      * {@inheritDoc}
      */
     @Override
-    public StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException {
+    public StreamContext streamContext(String streamName) throws IOException, JetStreamApiException {
+        Validator.validateStreamName(streamName, true);
         return getNatsStreamContext(streamName);
-    }
-
-    private NatsStreamContext getNatsStreamContext(String streamName) throws IOException, JetStreamApiException {
-        return new NatsStreamContext(conn, jso, streamName);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
+    public ConsumerContext consumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
+        Validator.validateStreamName(streamName, true);
         Validator.required(consumerName, "Consumer Name");
-        return new NatsConsumerContext(getNatsStreamContext(streamName), consumerName, null);
+        return getNatsStreamContext(streamName).consumerContext(consumerName);
     }
 
-//    /**
-//     * {@inheritDoc}
-//     */
-//    @Override
-//    public ConsumerContext getConsumerContext(String streamName, ConsumerConfiguration consumerConfiguration) throws IOException, JetStreamApiException {
-//        Validator.required(consumerConfiguration, "Consumer Configuration");
-//        return new NatsConsumerContext(getNatsStreamContext(streamName), null, consumerConfiguration);
-//    }
+    private NatsStreamContext getNatsStreamContext(String streamName) throws IOException, JetStreamApiException {
+        return new NatsStreamContext(conn, jso, streamName);
+    }
 }

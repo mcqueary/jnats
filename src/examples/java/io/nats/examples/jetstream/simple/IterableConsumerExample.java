@@ -1,4 +1,4 @@
-// Copyright 2020-2023 The NATS Authors
+// Copyright 2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -16,45 +16,50 @@ package io.nats.examples.jetstream.simple;
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 
-import java.time.Duration;
+import java.io.IOException;
 
 import static io.nats.examples.jetstream.simple.Utils.Publisher;
-import static io.nats.examples.jetstream.simple.Utils.setupStream;
+import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
 
 /**
- * This example will demonstrate simplified manual consume.
+ * This example will demonstrate simplified IterableConsumer where the developer calls nextMessage.
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
-public class ConsumeManuallyCallNext {
-    private static final String STREAM = "simple-stream";
-    private static final String SUBJECT = "simple-subject";
+public class IterableConsumerExample {
+    private static final String STREAM = "manually-stream";
+    private static final String SUBJECT = "manually-subject";
+    private static final String CONSUMER_NAME = "manually-consumer";
+    private static final String MESSAGE_TEXT = "manually";
     private static final int STOP_COUNT = 500;
     private static final int REPORT_EVERY = 50;
     private static final int JITTER = 20;
 
-    // change this is you need to...
-    public static String SERVER = "nats://localhost:4222";
+    private static final String SERVER = "nats://localhost:4222";
 
     public static void main(String[] args) {
         Options options = Options.builder().server(SERVER).build();
         try (Connection nc = Nats.connect(options)) {
-
-            JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
+            createOrReplaceStream(nc.jetStreamManagement(), STREAM, SUBJECT);
 
-            setupStream(jsm, STREAM, SUBJECT);
-
-            String name = "simple-consumer-" + NUID.nextGlobal();
-
-            // Pre define a consumer
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(name).build();
-            jsm.addOrUpdateConsumer(STREAM, cc);
-
-            // Consumer[Context]
-            ConsumerContext consumerContext = js.getConsumerContext(STREAM, name);
-
-            // create the consumer then use it
-            ManualConsumer consumer = consumerContext.consume();
+            // get stream context, create consumer, get the consumer context, get an IterableConsumer
+            StreamContext streamContext;
+            ConsumerContext consumerContext;
+            IterableConsumer consumer;
+            try {
+                streamContext = nc.streamContext(STREAM);
+                streamContext.addConsumer(ConsumerConfiguration.builder().durable(CONSUMER_NAME).build());
+                consumerContext = streamContext.consumerContext(CONSUMER_NAME);
+                consumer = consumerContext.consume();
+            }
+            catch (JetStreamApiException | IOException e) {
+                // JetStreamApiException:
+                //      1. the stream or consumer did not exist
+                //      2. api calls under the covers theoretically this could fail, but practically it won't.
+                // IOException:
+                //      likely a connection problem
+                return;
+            }
 
             long start = System.nanoTime();
             Thread consumeThread = new Thread(() -> {
@@ -74,7 +79,7 @@ public class ConsumeManuallyCallNext {
 
                     System.out.println("Pausing for effect...allow more messages come across.");
                     Thread.sleep(JITTER * 2); // allows more messages to come across
-                    consumer.drain(Duration.ofSeconds(1));
+                    consumer.stop(1000);
 
                     System.out.println("Starting post-drain loop.");
                     Message msg = consumer.nextMessage(1000);
@@ -84,24 +89,33 @@ public class ConsumeManuallyCallNext {
                         msg = consumer.nextMessage(1000);
                     }
                 }
-                catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                catch (JetStreamStatusCheckedException |InterruptedException e) {
+                    // JetStreamStatusCheckedException:
+                    //      Either the consumer was deleted in the middle
+                    //      of the pull or there is a new status from the
+                    //      server that this client is not aware of
+                    // InterruptedException:
+                    //      developer interrupted this thread?
+                    return;
                 }
 
                 report("Done", start, count);
             });
             consumeThread.start();
 
-            Publisher publisher = new Publisher(js, SUBJECT, JITTER);
+            Publisher publisher = new Publisher(js, SUBJECT, MESSAGE_TEXT, JITTER);
             Thread pubThread = new Thread(publisher);
             pubThread.start();
 
             consumeThread.join();
-            publisher.stop();
+            publisher.stopPublishing();
             pubThread.join();
         }
-        catch (Exception e) {
-            e.printStackTrace();
+        catch (IOException | InterruptedException ioe) {
+            // IOException:
+            //      problem making the connection
+            // InterruptedException:
+            //      thread interruption in the body of the example
         }
     }
 

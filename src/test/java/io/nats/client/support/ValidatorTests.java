@@ -197,6 +197,13 @@ public class ValidatorTests {
     }
 
     @Test
+    public void testIsGtEqZero() {
+        assertTrue(Validator.isGtEqZero(0));
+        assertTrue(Validator.isGtEqZero(1));
+        assertFalse(Validator.isGtEqZero(-1));
+    }
+
+    @Test
     public void testValidateGtEqZero() {
         assertEquals(0, validateGtEqZero(0, "test"));
         assertEquals(1, validateGtEqZero(1, "test"));
@@ -514,5 +521,78 @@ public class ValidatorTests {
         assertThrows(IllegalArgumentException.class, () -> validateSemVer("9.8.7+meta+meta", label, true));
         assertThrows(IllegalArgumentException.class, () -> validateSemVer("9.8.7-whatever+meta+meta", label, true));
         assertThrows(IllegalArgumentException.class, () -> validateSemVer("99999999999999999999999.999999999999999999.99999999999999999----RC-SNAPSHOT.12.09.1--------------------------------..12", label, true));
+    }
+
+    @Test
+    public void testListsAreEqual() {
+        List<String> l1 = Arrays.asList("one", "two");
+        List<String> l2 = Arrays.asList("one", "two");
+        List<String> l3 = Collections.singletonList("three");
+        List<String> l4 = null;
+        List<String> l5 = null;
+        List<String> l6 = new ArrayList<>();
+
+        assertTrue(listsAreEqual(l1, l1, true));
+        assertTrue(listsAreEqual(l1, l1, false));
+        assertTrue(listsAreEqual(l1, l2, true));
+        assertTrue(listsAreEqual(l1, l2, false));
+        assertFalse(listsAreEqual(l1, l3, true));
+        assertFalse(listsAreEqual(l1, l3, false));
+
+        assertFalse(listsAreEqual(l4, l1, true));
+        assertFalse(listsAreEqual(l4, l1, false));
+
+        assertTrue(listsAreEqual(l4, l5, true));
+        assertTrue(listsAreEqual(l4, l5, false));
+        assertFalse(listsAreEqual(l4, l6, true));
+        assertFalse(listsAreEqual(l4, l6, false));
+
+        assertTrue(listsAreEqual(l6, l4, true));
+        assertFalse(listsAreEqual(l6, l4, false));
+    }
+
+    @Test
+    public void testMapsAreEqual() {
+        Map<String, String> m1 = new HashMap<>();
+        m1.put("one", "1");
+        m1.put("two", "2");
+
+        Map<String, String> m2 = new HashMap<>();
+        m2.put("two", "2");
+        m2.put("one", "1");
+
+        Map<String, String> m3 = new HashMap<>();
+        m3.put("three", "3");
+        m3.put("two", "4");
+
+        Map<String, String> m4 = new HashMap<>();
+        m3.put("four", "4");
+
+        Map<String, String> m5 = null;
+        Map<String, String> m6 = null;
+
+        Map<String, String> m7 = new HashMap<>();
+
+        assertTrue(mapsAreEqual(m1, m1, true));
+        assertTrue(mapsAreEqual(m1, m1, false));
+        assertTrue(mapsAreEqual(m1, m2, true));
+        assertTrue(mapsAreEqual(m1, m2, false));
+        assertFalse(mapsAreEqual(m1, m3, true));
+        assertFalse(mapsAreEqual(m1, m3, false));
+        assertFalse(mapsAreEqual(m1, m4, true));
+        assertFalse(mapsAreEqual(m1, m4, false));
+        assertFalse(mapsAreEqual(m1, m5, true));
+        assertFalse(mapsAreEqual(m1, m5, false));
+
+        assertFalse(mapsAreEqual(m5, m1, true));
+        assertFalse(mapsAreEqual(m5, m1, false));
+
+        assertTrue(mapsAreEqual(m5, m6, true));
+        assertTrue(mapsAreEqual(m5, m6, false));
+        assertFalse(mapsAreEqual(m5, m7, true));
+        assertFalse(mapsAreEqual(m5, m7, false));
+
+        assertTrue(mapsAreEqual(m7, m5, true));
+        assertFalse(mapsAreEqual(m7, m5, false));
     }
 }

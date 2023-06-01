@@ -56,14 +56,14 @@ class OrderedMessageManager extends PushMessageManager {
             long receivedConsumerSeq = msg.metaData().consumerSequence();
             if (expectedExternalConsumerSeq != receivedConsumerSeq) {
                 handleErrorCondition();
-                return STATUS; // error is handled because hope
+                return STATUS;
             }
             trackJsMessage(msg);
             expectedExternalConsumerSeq++;
             return MESSAGE;
         }
 
-        return super.manageStatus(msg);
+        return manageStatus(msg);
     }
 
     private void handleErrorCondition() {

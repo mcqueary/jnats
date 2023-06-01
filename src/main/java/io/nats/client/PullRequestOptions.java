@@ -27,7 +27,7 @@ import static io.nats.client.support.Validator.validateGtZero;
 public class PullRequestOptions implements JsonSerializable {
 
     private final int batchSize;
-    private final int maxBytes;
+    private final long maxBytes;
     private final boolean noWait;
     private final Duration expiresIn;
     private final Duration idleHeartbeat;
@@ -63,7 +63,7 @@ public class PullRequestOptions implements JsonSerializable {
      * Get the max bytes size option value
      * @return the max bytes size
      */
-    public int getMaxBytes() {
+    public long getMaxBytes() {
         return maxBytes;
     }
 
@@ -111,7 +111,7 @@ public class PullRequestOptions implements JsonSerializable {
 
     public static class Builder {
         private int batchSize;
-        private int maxBytes;
+        private long maxBytes;
         private boolean noWait;
         private Duration expiresIn;
         private Duration idleHeartbeat;
@@ -131,7 +131,7 @@ public class PullRequestOptions implements JsonSerializable {
          * @param maxBytes the maximum bytes
          * @return the builder
          */
-        public Builder maxBytes(int maxBytes) {
+        public Builder maxBytes(long maxBytes) {
             this.maxBytes = maxBytes;
             return this;
         }

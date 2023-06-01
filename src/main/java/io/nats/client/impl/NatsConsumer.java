@@ -53,9 +53,9 @@ abstract class NatsConsumer implements Consumer {
      * <p>
      * Any value less than or equal to zero means unlimited and will be stored as 0.
      * @param maxMessages the maximum message count to hold, defaults to
-     *                    {{@value #DEFAULT_MAX_MESSAGES}}.
+     *                    {@value #DEFAULT_MAX_MESSAGES}.
      * @param maxBytes    the maximum bytes to hold, defaults to
-     *                    {{@value #DEFAULT_MAX_BYTES}}.
+     *                    {@value #DEFAULT_MAX_BYTES}.
      */
     public void setPendingLimits(long maxMessages, long maxBytes) {
         this.maxMessages.set(maxMessages <= 0 ? 0 : maxMessages);

@@ -269,8 +269,15 @@ public class NatsJsUtils {
     }
 
     public static Thread publishInBackground(JetStream js, String subject, String prefix, int count) {
+        return publishInBackground(js, subject, prefix, count, 0);
+    }
+
+    public static Thread publishInBackground(JetStream js, String subject, String prefix, int count, long delay) {
         Thread t = new Thread(() -> {
             try {
+                if (delay > 0) {
+                    Thread.sleep(delay);
+                }
                 for (int x = 1; x <= count; x++) {
                     String data = prefix + "-" + x;
                     Message msg = NatsMessage.builder()

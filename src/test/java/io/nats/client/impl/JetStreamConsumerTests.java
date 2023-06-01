@@ -197,7 +197,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         public final CountDownLatch latch;
 
         public PullHeartbeatErrorSimulator(NatsConnection conn, boolean syncMode, CountDownLatch latch) {
-            super(conn, syncMode);
+            super(conn, PullSubscribeOptions.DEFAULT_PULL_OPTS, syncMode);
             this.latch = latch;
         }
 

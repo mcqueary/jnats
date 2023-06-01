@@ -17,45 +17,42 @@ import io.nats.client.*;
 
 import java.io.IOException;
 
-class NatsFetchConsumer extends NatsSimpleConsumerBase implements FetchConsumer {
+class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer {
     private final long maxWaitNanos;
-    private final long start;
+    private long startNanos;
 
-    public NatsFetchConsumer(NatsConsumerContext.Mediator mediator, FetchConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
-        initSub(mediator.makeSubscription(null));
-        maxWaitNanos = consumeOptions.getExpires() * 1_000_000;
-        sub.pull(PullRequestOptions.builder(consumeOptions.getMaxMessages())
-            .maxBytes(consumeOptions.getMaxBytes())
-            .expiresIn(consumeOptions.getExpires())
-            .idleHeartbeat(consumeOptions.getIdleHeartbeat())
-            .build()
-        );
-        start = System.nanoTime();
+    public NatsFetchConsumer(NatsConsumerContext.SubscriptionMaker subscriptionMaker, FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
+        initSub(subscriptionMaker.makeSubscription(null));
+        maxWaitNanos = fetchConsumeOptions.getExpiresIn() * 1_000_000;
+        PullRequestOptions pro = PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())
+            .maxBytes(fetchConsumeOptions.getMaxBytes())
+            .expiresIn(fetchConsumeOptions.getExpiresIn())
+            .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
+            .build();
+        sub._pull(pro, false, null);
+        startNanos = -1;
     }
 
     @Override
-    public Message nextMessage() throws InterruptedException {
-        Message m;
-        if (pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1)) {
-            // nothing pending means the client has already received all it is going to
-            // null for nextMessage means don't wait, the queue either has something already
-            // or there aren't any messages left
-            m = sub.nextMessage(null);
-        }
-        else {
-            long timeLeftMillis = (maxWaitNanos - (System.nanoTime() - start)) / 1_000_000;
-            if (timeLeftMillis < 1) {
-                m = sub.nextMessage(null);
+    public Message nextMessage() throws InterruptedException, JetStreamStatusCheckedException {
+        try {
+            if (startNanos == -1) {
+                startNanos = System.nanoTime();
             }
-            else {
-                m = sub.nextMessage(timeLeftMillis);
+
+            long timeLeftMillis = (maxWaitNanos - (System.nanoTime() - startNanos)) / 1_000_000;
+
+            // if the manager thinks it has received everything in the pull, it means
+            // that all the messages are already in the internal queue and there is
+            // no waiting necessary
+            if (timeLeftMillis < 1 | pmm.pendingMessages < 1 || (pmm.trackingBytes && pmm.pendingBytes < 1)) {
+                return sub._nextUnmanagedNullOrLteZero(null); // null means don't wait
             }
+
+            return sub.nextMessage(timeLeftMillis);
         }
-        if (m == null) {
-            // if we are out of messages, unsub, but do it on a
-            // separate thread, so we can return to the user w/o waiting
-            sub.connection.getExecutor().submit(() -> unsubscribe(-1));
+        catch (JetStreamStatusException e) {
+            throw new JetStreamStatusCheckedException(e);
         }
-        return m;
     }
 }

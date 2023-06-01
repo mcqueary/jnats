@@ -18,12 +18,14 @@ package io.nats.client;
  * SIMPLIFICATION IS EXPERIMENTAL AND SUBJECT TO CHANGE
  */
 public class FetchConsumeOptions extends BaseConsumeOptions {
+    public static FetchConsumeOptions DEFAULT_FETCH_OPTIONS = FetchConsumeOptions.builder().build();
+
     private FetchConsumeOptions(Builder b) {
         super(b);
     }
 
     /**
-     * The maximum number of messages to fetch
+     * The maximum number of messages to fetch.
      * @return the maximum number of messages to fetch
      */
     public int getMaxMessages() {
@@ -31,10 +33,10 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
     }
 
     /**
-     * The maximum number of bytes to fetch
+     * The maximum number of bytes to fetch.
      * @return the maximum number of bytes to fetch
      */
-    public int getMaxBytes() {
+    public long getMaxBytes() {
         return bytes;
     }
 
@@ -48,29 +50,52 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
         protected Builder getThis() { return this; }
 
         /**
-         * Set the maximum number of messages to fetch
-         * @param messages the number of messages. Must be greater than 0
+         * Set the maximum number of messages to fetch and remove any previously set {@link #maxBytes(long)} constraint.
+         * The number of messages fetched will also be constrained by the expiration time.
+         * <p>Less than 1 means default of {@value BaseConsumeOptions#DEFAULT_MESSAGE_COUNT}.</p>
+         * @param maxMessages the number of messages.
          * @return the builder
          */
-        public Builder maxMessages(int messages) {
-            return super.messages(messages);
+        public Builder maxMessages(int maxMessages) {
+            messages(maxMessages);
+            return bytes(-1);
         }
 
         /**
-         * The maximum bytes to consume for Fetch. When set (a value greater than zero,)
-         * it is used in conjunction with max messages, meaning whichever limit is reached
-         * first is respected.
-         * @param bytes the maximum bytes
-         * @param messages the number of messages. Must be greater than 0.
+         * Set maximum number of bytes to fetch and remove any previously set {@link #maxMessages constraint}
+         * The number of bytes fetched will also be constrained by the expiration time.
+         * <p>Less than 1 removes any previously set max bytes constraint.</p>
+         * <p>It is important to set the byte size greater than your largest message payload, plus some amount
+         * to account for overhead, otherwise the consume process will stall if there are no messages that fit the criteria.</p>
+         * @see Message#consumeByteCount()
+         * @param maxBytes the maximum bytes
          * @return the builder
          */
-        public Builder maxBytes(int bytes, int messages) {
-            return super.bytes(bytes, messages);
+        public Builder maxBytes(long maxBytes) {
+            return super.bytes(maxBytes);
+        }
+
+        /**
+         * Set maximum number of bytes or messages to fetch.
+         * The number of messages/bytes fetched will also be constrained by
+         * whichever constraint is reached first, as well as the expiration time.
+         * <p>Less than 1 max bytes removes any previously set max bytes constraint.</p>
+         * <p>Less than 1 max messages removes any previously set max messages constraint.</p>
+         * <p>It is important to set the byte size greater than your largest message payload, plus some amount
+         * to account for overhead, otherwise the consume process will stall if there are no messages that fit the criteria.</p>
+         * @see Message#consumeByteCount()
+         * @param maxBytes the maximum bytes
+         * @param maxMessages the maximum number of messages
+         * @return the builder
+         */
+        public Builder max(int maxBytes, int maxMessages) {
+            messages(maxMessages);
+            return bytes(maxBytes);
         }
 
         /**
          * Build the FetchConsumeOptions.
-         * @return the built FetchConsumeOptions
+         * @return a FetchConsumeOptions instance
          */
         public FetchConsumeOptions build() {
             return new FetchConsumeOptions(this);

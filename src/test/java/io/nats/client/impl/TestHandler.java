@@ -146,6 +146,22 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         }
     }
 
+    public <T> boolean _eventually(long timeout, Supplier<List<T>> listSupplier, Predicate<T> predicate) {
+        long start = System.currentTimeMillis();
+        int i = 0;
+        do {
+            List<T> list = listSupplier.get();
+            int size = list.size();
+            for (; i < size; i++) {
+                if (predicate.test(list.get(i))) {
+                    return true;
+                }
+            }
+        }
+        while (System.currentTimeMillis() - start <= timeout);
+        return false;
+    }
+
     public void prepForError(String waitFor) {
         lock.lock();
         try {
@@ -159,16 +175,8 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         }
     }
 
-    public boolean waitForError(long timeout) {
-        return waitForBooleanFuture(errorWaitFuture, timeout, TimeUnit.MILLISECONDS);
-    }
-
-    public boolean waitForError(long timeout, TimeUnit units) {
-        return waitForBooleanFuture(errorWaitFuture, timeout, units);
-    }
-
-    public boolean errorsContainsOrWait(String contains, long timeout) {
-        return _OrWait(timeout, () -> errors, (s) -> s.contains(contains));
+    public boolean errorsEventually(String contains, long timeout) {
+        return _eventually(timeout, () -> errors, (s) -> s.contains(contains));
     }
 
     public void errorOccurred(Connection conn, String errorText) {
@@ -379,27 +387,10 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         return waitForFuture(pullStatusWarningWaitFuture, waitInMillis);
     }
 
-    public boolean pullStatusWarningOrWait(String contains, long timeout) {
-        return _OrWait(timeout, () -> pullStatusWarnings,
+    public boolean pullStatusWarningEventually(String contains, long timeout) {
+        return _eventually(timeout, () -> pullStatusWarnings,
             (se) -> se.status.getMessage().contains(contains));
     }
-
-    public <T> boolean _OrWait(long timeout, Supplier<List<T>> listSupplier, Predicate<T> predicate) {
-        long start = System.currentTimeMillis();
-        int i = 0;
-        do {
-            List<T> list = listSupplier.get();
-            int size = list.size();
-            for (; i < size; i++) {
-                if (predicate.test(list.get(i))) {
-                    return true;
-                }
-            }
-        }
-        while (System.currentTimeMillis() - start <= timeout);
-        return false;
-    }
-
 
     @Override
     public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
@@ -433,7 +424,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public boolean pullStatusErrorOrWait(String contains, long timeout) {
-        return _OrWait(timeout, () -> pullStatusErrors,
+        return _eventually(timeout, () -> pullStatusErrors,
             (se) -> se.status.getMessage().contains(contains));
     }
 

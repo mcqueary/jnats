@@ -18,9 +18,11 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 import static io.nats.examples.ExampleUtils.sleep;
 import static io.nats.examples.jetstream.NatsJsUtils.*;
@@ -158,8 +160,17 @@ public class NatsJsPullSubIterateUseCases {
             // delete the stream since we are done with it.
             jsm.deleteStream(exArgs.stream);
         }
-        catch (Exception e) {
-            e.printStackTrace();
+        catch (RuntimeException e) {
+            // Synchronous pull calls, including raw calls, fetch, iterate and reader
+            // can throw JetStreamStatusException, although it is rare.
+            // It also can happen if a new server version introduces a status the client does not understand.
+            // The two current statuses that cause this are:
+            // 1. 409 "Consumer Deleted" - The consumer was deleted externally in the middle of a pull request.
+            // 2. 409 "Consumer is push based" - The consumer was modified externally and changed into a push consumer
+            System.err.println(e);
+        }
+        catch (JetStreamApiException | IOException | TimeoutException | InterruptedException e) {
+            System.err.println(e);
         }
     }
 }

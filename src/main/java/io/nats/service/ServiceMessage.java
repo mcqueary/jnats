@@ -178,4 +178,9 @@ public class ServiceMessage implements Message {
     public boolean isJetStream() {
         return message.isJetStream();
     }
+
+    @Override
+    public long consumeByteCount() {
+        return message.consumeByteCount();
+    }
 }

@@ -106,16 +106,15 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 return null; // no message currently queued
             }
             if (manager.manage(msg) == ManageResult.MESSAGE) {
-                    return msg;
+                return msg;
             }
-            // since this is strictly called from user calls of nextMessage, non-messages are considered managed
         }
     }
 
-    protected static final long MIN_MILLIS = 20;
-    protected static final long EXPIRE_LESS_MILLIS = 10;
+    public static final long EXPIRE_ADJUSTMENT = 10;
+    public static final long MIN_EXPIRE_MILLIS = 20;
 
-    protected Message _nextUnmanaged(long timeout, String replyMatch) throws InterruptedException {
+    protected Message _nextUnmanaged(long timeout, String expectedPullId) throws InterruptedException {
         // timeout > 0 process as many messages we can in that time period
         // If we get a message that either manager handles, we try again, but
         // with a shorter timeout based on what we already used up
@@ -134,7 +133,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 case ERROR:
                     // reply match will be null on pushes and all status are "managed" so ignored in this loop
                     // otherwise (pull) if there is a match, the status applies
-                    if (replyMatch != null && replyMatch.equals(msg.getSubject())) {
+                    if (expectedPullId != null && expectedPullId.equals(msg.getSubject())) {
                         return null;
                     }
             }

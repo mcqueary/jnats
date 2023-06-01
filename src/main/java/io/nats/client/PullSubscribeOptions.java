@@ -21,7 +21,7 @@ public class PullSubscribeOptions extends SubscribeOptions {
     public static final PullSubscribeOptions DEFAULT_PULL_OPTS = PullSubscribeOptions.builder().build();
 
     private PullSubscribeOptions(Builder builder) {
-        super(builder, true, false, null, null, -1, -1);
+        super(builder, true, null, null, -1, -1);
     }
 
     /**

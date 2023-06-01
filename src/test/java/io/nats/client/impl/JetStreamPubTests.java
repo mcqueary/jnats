@@ -68,7 +68,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
             assertPublishAck(pa, 9);
 
             h = new Headers().put("foo", "bar10");
-            pa = js.publish(SUBJECT, h, dataBytes(10));
+            pa = js.publish(SUBJECT, h, dataBytes(10), po);
             assertPublishAck(pa, 10);
 
             Subscription s = js.subscribe(SUBJECT);

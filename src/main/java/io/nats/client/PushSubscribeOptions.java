@@ -22,9 +22,9 @@ import static io.nats.client.support.Validator.emptyAsNull;
 public class PushSubscribeOptions extends SubscribeOptions {
     public static final PushSubscribeOptions DEFAULT_PUSH_OPTS = PushSubscribeOptions.builder().build();
 
-    private PushSubscribeOptions(Builder builder, boolean ordered, String deliverSubject, String deliverGroup,
+    private PushSubscribeOptions(Builder builder, String deliverSubject, String deliverGroup,
                                  long pendingMessageLimit, long pendingByteLimit) {
-        super(builder, false, ordered, deliverSubject, deliverGroup, pendingMessageLimit, pendingByteLimit);
+        super(builder, false, deliverSubject, deliverGroup, pendingMessageLimit, pendingByteLimit);
     }
 
     /**
@@ -94,7 +94,6 @@ public class PushSubscribeOptions extends SubscribeOptions {
      */
     public static class Builder
             extends SubscribeOptions.Builder<Builder, PushSubscribeOptions> {
-        private boolean ordered;
         private String deliverSubject;
         private String deliverGroup;
         private long pendingMessageLimit = Consumer.DEFAULT_MAX_MESSAGES;
@@ -165,7 +164,7 @@ public class PushSubscribeOptions extends SubscribeOptions {
          */
         @Override
         public PushSubscribeOptions build() {
-            return new PushSubscribeOptions(this, ordered, deliverSubject, deliverGroup,
+            return new PushSubscribeOptions(this, deliverSubject, deliverGroup,
                 pendingMessageLimit, pendingByteLimit);
         }
     }

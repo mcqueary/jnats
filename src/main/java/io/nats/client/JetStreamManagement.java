@@ -57,10 +57,10 @@ public interface JetStreamManagement {
     /**
      * Deletes an existing stream.
      * @param streamName the stream name to use.
+     * @return true if the delete succeeded. Usually throws a JetStreamApiException otherwise
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return true if the delete succeeded. Usually throws a JetStreamApiException otherwise
      */
     boolean deleteStream(String streamName) throws IOException, JetStreamApiException;
 
@@ -69,10 +69,10 @@ public interface JetStreamManagement {
      * Does not retrieve any optional data.
      * See the overloaded version that accepts StreamInfoOptions
      * @param streamName the stream name to use.
+     * @return stream information
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return stream information
      */
     StreamInfo getStreamInfo(String streamName) throws IOException, JetStreamApiException;
 
@@ -81,10 +81,10 @@ public interface JetStreamManagement {
      * as defined by StreamInfoOptions.
      * @param streamName the stream name to use.
      * @param options the stream info options. If null, request will not return any optional data.
+     * @return stream information
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return stream information
      */
     StreamInfo getStreamInfo(String streamName, StreamInfoOptions options) throws IOException, JetStreamApiException;
 
@@ -113,10 +113,10 @@ public interface JetStreamManagement {
      * Loads or creates a consumer.
      * @param streamName name of the stream
      * @param config the consumer configuration to use.
+     * @return consumer information.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return consumer information.
      */
     ConsumerInfo addOrUpdateConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException;
 
@@ -124,23 +124,23 @@ public interface JetStreamManagement {
      * Deletes a consumer.
      * @param streamName name of the stream
      * @param consumerName the name of the consumer.
+     * @return true if the delete succeeded
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     * @return true if the delete succeeded
+     * @throws JetStreamApiException the request had an error related to the data, for instance the consumer does not exist.
      */
     boolean deleteConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Gets the info for an existing consumer.
      * @param streamName name of the stream
-     * @param consumer the consumer name to use.
+     * @param consumerName the name of the consumer.
+     * @return consumer information
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return consumer information
      */
-    ConsumerInfo getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException;
+    ConsumerInfo getConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Return a list of consumers by name
@@ -249,7 +249,7 @@ public interface JetStreamManagement {
 
     /**
      * Deletes a message, overwriting the message data with garbage
-     * This can be considered an expensive (time consuming) operation, but is more secure.
+     * This can be considered an expensive (time-consuming) operation, but is more secure.
      * @param streamName name of the stream
      * @param seq the sequence number of the message
      * @throws IOException covers various communication issues with the NATS

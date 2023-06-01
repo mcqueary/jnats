@@ -68,7 +68,7 @@ public class ErrorListenerTests {
             handler.prepForStatusChange(Events.RECONNECTED);
             handler.waitForStatusChange(5, TimeUnit.SECONDS);
 
-            assertTrue(handler.errorsContainsOrWait("Authorization Violation", 2000));
+            assertTrue(handler.errorsEventually("Authorization Violation", 2000));
 
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             assertEquals(ts3.getURI(), nc.getConnectedUrl());
@@ -114,7 +114,7 @@ public class ErrorListenerTests {
             handler.prepForStatusChange(Events.RECONNECTED);
             handler.waitForStatusChange(5, TimeUnit.SECONDS);
 
-            assertTrue(handler.errorsContainsOrWait("Authorization Violation", 2000));
+            assertTrue(handler.errorsEventually("Authorization Violation", 2000));
 
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             assertEquals(ts3.getURI(), nc.getConnectedUrl());
@@ -129,7 +129,7 @@ public class ErrorListenerTests {
     @Test
     public void testErrorOnNoAuth() throws Exception {
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
-        TestHandler handler = new TestHandler(true, true);
+        TestHandler handler = new TestHandler();
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             sleep(1000); // give the server time to get ready, otherwise sometimes this test flaps
             // See config file for user/pass
@@ -144,7 +144,7 @@ public class ErrorListenerTests {
                 fail();
             }
             catch (Exception ignore) {}
-            assertTrue(handler.errorsContainsOrWait("Authorization Violation", 3000));
+            assertTrue(handler.errorsEventually("Authorization Violation", 5000));
         }
     }
 

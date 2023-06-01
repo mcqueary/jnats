@@ -14,30 +14,31 @@
 package io.nats.client.impl;
 
 import io.nats.client.JetStreamApiException;
-import io.nats.client.SimpleConsumer;
+import io.nats.client.MessageConsumer;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-class NatsSimpleConsumerBase implements SimpleConsumer {
+class NatsMessageConsumerBase implements MessageConsumer {
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
     protected final Object subLock;
-    protected boolean active;
+    protected CompletableFuture<Boolean> drainFuture;
 
-    NatsSimpleConsumerBase() {
+    NatsMessageConsumerBase() {
         subLock = new Object();
-        active = true;
     }
 
-    // Synchronized by caller if necessary
     protected void initSub(NatsJetStreamPullSubscription sub) {
         this.sub = sub;
         pmm = (PullMessageManager)sub.manager;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         synchronized (subLock) {
@@ -45,37 +46,35 @@ class NatsSimpleConsumerBase implements SimpleConsumer {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public boolean isActive() {
-        return active;
-    }
-
-    @Override
-    public void unsubscribe() {
-        unsubscribe(-1);
-    }
-
-    @Override
-    public void unsubscribe(int after) {
+    public CompletableFuture<Boolean> stop(long timeout) throws InterruptedException {
         synchronized (subLock) {
-            active = false;
-            if (sub.getNatsDispatcher() != null) {
-                sub.getDispatcher().unsubscribe(sub, after);
+            if (drainFuture == null) {
+                if (sub.getNatsDispatcher() != null) {
+                    drainFuture = sub.getDispatcher().drain(Duration.ofMillis(timeout));
+                }
+                else {
+                    drainFuture = sub.drain(Duration.ofMillis(timeout));
+                }
             }
-            else {
-                sub.unsubscribe(after);
-            }
+            return drainFuture;
         }
     }
 
     @Override
-    public CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException {
+    public void close() throws Exception {
         synchronized (subLock) {
-            active = false;
-            if (sub.getNatsDispatcher() != null) {
-                return sub.getDispatcher().drain(timeout);
+            if (drainFuture == null && sub.isActive()) {
+                if (sub.getNatsDispatcher() != null) {
+                    sub.getDispatcher().unsubscribe(sub);
+                }
+                else {
+                    sub.unsubscribe();
+                }
             }
-            return sub.drain(timeout);
         }
     }
 }

@@ -37,13 +37,13 @@ public abstract class SubscribeOptions {
     protected final long pendingByteLimit; // Only applicable for non dispatched (sync) push consumers.
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
-    protected SubscribeOptions(Builder builder, boolean isPull, boolean isOrdered,
+    protected SubscribeOptions(Builder builder, boolean isPull,
                                String deliverSubject, String deliverGroup,
                                long pendingMessageLimit, long pendingByteLimit) {
 
         pull = isPull;
         bind = builder.bind;
-        ordered = isOrdered;
+        ordered = builder.ordered;
         messageAlarmTime = builder.messageAlarmTime;
 
         if (ordered && bind) {
@@ -66,7 +66,7 @@ public abstract class SubscribeOptions {
         this.pendingMessageLimit = pendingMessageLimit;
         this.pendingByteLimit = pendingByteLimit;
 
-        if (isOrdered) {
+        if (ordered) {
             validateNotSupplied(deliverGroup, JsSoOrderedNotAllowedWithDeliverGroup);
             validateNotSupplied(durable, JsSoOrderedNotAllowedWithDurable);
             validateNotSupplied(deliverSubject, JsSoOrderedNotAllowedWithDeliverSubject);
@@ -203,6 +203,8 @@ public abstract class SubscribeOptions {
         String name;
         ConsumerConfiguration cc;
         long messageAlarmTime = -1;
+        boolean ordered;
+        boolean raiseStatusWarnings = true;
 
         protected abstract B getThis();
 

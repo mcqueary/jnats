@@ -54,8 +54,8 @@ public interface Consumer {
      * 
      * <p>Setting a value to anything less than or equal to 0 will disable this check.
      * 
-     * @param maxMessages the maximum message count to hold, defaults to {{@value #DEFAULT_MAX_MESSAGES}}
-     * @param maxBytes the maximum bytes to hold, defaults to {{@value #DEFAULT_MAX_BYTES}}
+     * @param maxMessages the maximum message count to hold, defaults to {@value #DEFAULT_MAX_MESSAGES}
+     * @param maxBytes the maximum bytes to hold, defaults to {@value #DEFAULT_MAX_BYTES}
      */
     public void setPendingLimits(long maxMessages, long maxBytes);
 
@@ -95,7 +95,7 @@ public interface Consumer {
     public void clearDroppedCount();
 
     /**
-     * @return whether or not this consumer is still processing messages.
+     * @return whether this consumer is still processing messages.
      * For a subscription the answer is false after unsubscribe. For a dispatcher, false after stop.
      */
     public boolean isActive();
