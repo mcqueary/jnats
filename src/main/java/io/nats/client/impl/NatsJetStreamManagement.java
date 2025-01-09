@@ -16,12 +16,17 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.Error;
 import io.nats.client.api.*;
+import io.nats.client.support.Status;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
 
+import static io.nats.client.support.NatsJetStreamClientError.JsAllowDirectRequired;
+import static io.nats.client.support.NatsJetStreamClientError.JsDirectBatchGet211NotAvailable;
 import static io.nats.client.support.Validator.*;
 
 public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStreamManagement {
@@ -273,6 +278,11 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         return _getMessage(streamName, MessageGetRequest.forSequence(seq));
     }
 
+    @Override
+    public MessageInfo getMessage(String streamName, MessageGetRequest messageGetRequest) throws IOException, JetStreamApiException {
+        return _getMessage(streamName, messageGetRequest);
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -287,6 +297,22 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     @Override
     public MessageInfo getFirstMessage(String streamName, String subject) throws IOException, JetStreamApiException {
         return _getMessage(streamName, MessageGetRequest.firstForSubject(subject));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getFirstMessage(String streamName, ZonedDateTime startTime) throws IOException, JetStreamApiException {
+        return _getMessage(streamName, MessageGetRequest.firstForStartTime(startTime));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getFirstMessage(String streamName, ZonedDateTime startTime, String subject) throws IOException, JetStreamApiException {
+        return _getMessage(streamName, MessageGetRequest.firstForStartTimeAndSubject(startTime, subject));
     }
 
     /**
@@ -321,6 +347,111 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
             String getSubject = String.format(JSAPI_MSG_GET, streamName);
             Message resp = makeRequestResponseRequired(getSubject, messageGetRequest.serialize(), getTimeout());
             return new MessageInfo(resp, streamName, false).throwOnHasError();
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<MessageInfo> fetchMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
+        validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
+        final List<MessageInfo> results = new ArrayList<>();
+        _requestMessageBatch(streamName, messageBatchGetRequest, false, mi -> {
+            if (mi.isErrorStatus()) {
+                results.clear();
+            }
+            results.add(mi);
+        });
+        return results;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public LinkedBlockingQueue<MessageInfo> queueMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
+        validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
+        final LinkedBlockingQueue<MessageInfo> q = new LinkedBlockingQueue<>();
+        conn.getOptions().getExecutor().submit(
+            () -> _requestMessageBatch(streamName, messageBatchGetRequest, true, q::add));
+        return q;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
+        validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
+        return _requestMessageBatch(streamName, messageBatchGetRequest, true, handler);
+    }
+
+    private boolean _requestMessageBatch(String streamName, MessageBatchGetRequest mbgr, boolean sendEob, MessageInfoHandler handler) {
+        Subscription sub = null;
+
+        try {
+            String replyTo = conn.createInbox();
+            sub = conn.subscribe(replyTo);
+
+            String subject = prependPrefix(String.format(JSAPI_DIRECT_GET, streamName));
+            conn.publish(subject, replyTo, mbgr.serialize());
+
+            while (true) {
+                Message msg = sub.nextMessage(getTimeout());
+                Status errorOrNonEob = null;
+                if (msg == null) {
+                    errorOrNonEob = Status.TIMEOUT_OR_NO_MESSAGES;
+                }
+                else if (msg.isStatusMessage()) {
+                    if (msg.getStatus().isEob()) {
+                        return true;  // will send eob in finally if caller asked
+                    }
+                    errorOrNonEob = msg.getStatus();
+                }
+
+                if (errorOrNonEob != null) {
+                    // All error or non eob statuses, always send, but it is the last message to the caller
+                    sendEob = false;
+                    handler.onMessageInfo(new MessageInfo(errorOrNonEob, streamName));
+                    return false; // should not time out before eob
+                }
+
+                MessageInfo messageInfo = new MessageInfo(msg, streamName, true);
+                handler.onMessageInfo(messageInfo);
+            }
+        }
+        catch (InterruptedException e) {
+            // sub.nextMessage was fetching one message
+            // and data is not completely read
+            // so it seems like this is an error condition
+            Thread.currentThread().interrupt();
+            sendEob = false;
+            return false;
+        } finally {
+            if (sendEob) {
+                try {
+                    handler.onMessageInfo(new MessageInfo(Status.EOB, streamName));
+                }
+                catch (RuntimeException ignore) { /* user handler runtime error */ }
+            }
+            try {
+                //noinspection DataFlowIssue
+                sub.unsubscribe();
+            } catch (RuntimeException ignore) { /* don't want this to fail here */ }
+        }
+    }
+
+    private void validateMessageBatchGetRequest(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
+        validateNotNull(messageBatchGetRequest, "Message Batch Get Request");
+
+        if (!directBatchGet211Available) {
+            throw JsDirectBatchGet211NotAvailable.instance();
+        }
+
+        CachedStreamInfo csi = getCachedStreamInfo(streamName);
+        if (!csi.allowDirect) {
+            throw JsAllowDirectRequired.instance();
         }
     }
 

@@ -67,13 +67,18 @@ public class ConsumerConfigurationTests extends TestBase {
             .headersOnly(true)
             .memStorage(true)
             .backoff(1000, 2000, 3000)
-            .metadata(metadata);
+            .metadata(metadata)
+            .priorityGroups("pgroup1", "pgroup2")
+            .priorityPolicy(PriorityPolicy.Overflow)
+            ;
 
-        ConsumerConfiguration c = builder.build();
-        assertNotNull(c.toString()); // COVERAGE
-        assertAsBuilt(c, zdt);
+        ConsumerConfiguration cc = builder.build();
+        assertNotNull(cc.toString()); // COVERAGE
+        assertAsBuilt(cc, zdt);
+        assertAsBuilt(ConsumerConfiguration.builder(cc).build(), zdt);
+        assertAsBuilt(ConsumerConfiguration.builder().json(cc.toJson()).build(), zdt);
 
-        ConsumerCreateRequest ccr = new ConsumerCreateRequest(STREAM, c);
+        ConsumerCreateRequest ccr = new ConsumerCreateRequest(STREAM, cc);
         assertNotNull(ccr.toString()); // COVERAGE
         assertEquals(STREAM, ccr.getStreamName());
         assertNotNull(ccr.getConfig());
@@ -83,22 +88,22 @@ public class ConsumerConfigurationTests extends TestBase {
 
         assertDefaultCc(new SerializableConsumerConfiguration().getConsumerConfiguration());
         _testSerializing(new SerializableConsumerConfiguration(builder), zdt);
-        _testSerializing(new SerializableConsumerConfiguration(c), zdt);
+        _testSerializing(new SerializableConsumerConfiguration(cc), zdt);
 
         // flow control idle heartbeat combo
-        c = ConsumerConfiguration.builder()
+        cc = ConsumerConfiguration.builder()
             .flowControl(Duration.ofMillis(501)).build();
-        assertTrue(c.isFlowControl());
-        assertEquals(501, c.getIdleHeartbeat().toMillis());
+        assertTrue(cc.isFlowControl());
+        assertEquals(501, cc.getIdleHeartbeat().toMillis());
 
-        c = ConsumerConfiguration.builder()
+        cc = ConsumerConfiguration.builder()
             .flowControl(502).build();
-        assertTrue(c.isFlowControl());
-        assertEquals(502, c.getIdleHeartbeat().toMillis());
+        assertTrue(cc.isFlowControl());
+        assertEquals(502, cc.getIdleHeartbeat().toMillis());
 
         // millis instead of duration coverage
         // supply null as deliverPolicy, ackPolicy , replayPolicy,
-        c = ConsumerConfiguration.builder()
+        cc = ConsumerConfiguration.builder()
             .deliverPolicy(null)
             .ackPolicy(null)
             .replayPolicy(null)
@@ -106,11 +111,11 @@ public class ConsumerConfigurationTests extends TestBase {
             .idleHeartbeat(6000) // millis
             .build();
 
-        assertEquals(DEFAULT_ACK_POLICY, c.getAckPolicy());
-        assertEquals(DEFAULT_DELIVER_POLICY, c.getDeliverPolicy());
-        assertEquals(DEFAULT_REPLAY_POLICY, c.getReplayPolicy());
-        assertEquals(Duration.ofSeconds(9), c.getAckWait());
-        assertEquals(Duration.ofSeconds(6), c.getIdleHeartbeat());
+        assertEquals(DEFAULT_ACK_POLICY, cc.getAckPolicy());
+        assertEquals(DEFAULT_DELIVER_POLICY, cc.getDeliverPolicy());
+        assertEquals(DEFAULT_REPLAY_POLICY, cc.getReplayPolicy());
+        assertEquals(Duration.ofSeconds(9), cc.getAckWait());
+        assertEquals(Duration.ofSeconds(6), cc.getIdleHeartbeat());
 
         ConsumerConfiguration original = ConsumerConfiguration.builder().build();
         validateDefault(original);
@@ -125,47 +130,47 @@ public class ConsumerConfigurationTests extends TestBase {
         validateDefault(ccTest);
 
         // flow control coverage
-        c = ConsumerConfiguration.builder().build();
-        assertFalse(c.isFlowControl());
+        cc = ConsumerConfiguration.builder().build();
+        assertFalse(cc.isFlowControl());
 
-        c = ConsumerConfiguration.builder().flowControl(1000).build();
-        assertTrue(c.isFlowControl());
+        cc = ConsumerConfiguration.builder().flowControl(1000).build();
+        assertTrue(cc.isFlowControl());
 
         // headers only coverage
-        c = ConsumerConfiguration.builder().build();
-        assertFalse(c.isHeadersOnly());
+        cc = ConsumerConfiguration.builder().build();
+        assertFalse(cc.isHeadersOnly());
 
-        c = ConsumerConfiguration.builder().headersOnly(false).build();
-        assertFalse(c.isHeadersOnly());
+        cc = ConsumerConfiguration.builder().headersOnly(false).build();
+        assertFalse(cc.isHeadersOnly());
 
-        c = ConsumerConfiguration.builder().headersOnly(true).build();
-        assertTrue(c.isHeadersOnly());
+        cc = ConsumerConfiguration.builder().headersOnly(true).build();
+        assertTrue(cc.isHeadersOnly());
 
         // mem storage coverage
-        c = ConsumerConfiguration.builder().build();
-        assertFalse(c.isMemStorage());
+        cc = ConsumerConfiguration.builder().build();
+        assertFalse(cc.isMemStorage());
 
-        c = ConsumerConfiguration.builder().memStorage(false).build();
-        assertFalse(c.isMemStorage());
+        cc = ConsumerConfiguration.builder().memStorage(false).build();
+        assertFalse(cc.isMemStorage());
 
-        c = ConsumerConfiguration.builder().memStorage(true).build();
-        assertTrue(c.isMemStorage());
+        cc = ConsumerConfiguration.builder().memStorage(true).build();
+        assertTrue(cc.isMemStorage());
 
         // idleHeartbeat coverage
-        c = ConsumerConfiguration.builder().idleHeartbeat(null).build();
-        assertNull(c.getIdleHeartbeat());
+        cc = ConsumerConfiguration.builder().idleHeartbeat(null).build();
+        assertNull(cc.getIdleHeartbeat());
 
-        c = ConsumerConfiguration.builder().idleHeartbeat(Duration.ZERO).build();
-        assertEquals(DURATION_UNSET, c.getIdleHeartbeat());
+        cc = ConsumerConfiguration.builder().idleHeartbeat(Duration.ZERO).build();
+        assertEquals(DURATION_UNSET, cc.getIdleHeartbeat());
 
-        c = ConsumerConfiguration.builder().idleHeartbeat(0).build();
-        assertEquals(DURATION_UNSET, c.getIdleHeartbeat());
+        cc = ConsumerConfiguration.builder().idleHeartbeat(0).build();
+        assertEquals(DURATION_UNSET, cc.getIdleHeartbeat());
 
-        c = ConsumerConfiguration.builder().idleHeartbeat(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS + 1)).build();
-        assertEquals(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS + 1), c.getIdleHeartbeat());
+        cc = ConsumerConfiguration.builder().idleHeartbeat(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS + 1)).build();
+        assertEquals(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS + 1), cc.getIdleHeartbeat());
 
-        c = ConsumerConfiguration.builder().idleHeartbeat(MIN_IDLE_HEARTBEAT_MILLIS + 1).build();
-        assertEquals(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS + 1), c.getIdleHeartbeat());
+        cc = ConsumerConfiguration.builder().idleHeartbeat(MIN_IDLE_HEARTBEAT_MILLIS + 1).build();
+        assertEquals(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS + 1), cc.getIdleHeartbeat());
 
         assertThrows(IllegalArgumentException.class,
             () -> ConsumerConfiguration.builder().idleHeartbeat(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS - 1)).build());
@@ -174,20 +179,20 @@ public class ConsumerConfigurationTests extends TestBase {
             () -> ConsumerConfiguration.builder().idleHeartbeat(MIN_IDLE_HEARTBEAT_MILLIS - 1).build());
 
         // backoff coverage
-        c = ConsumerConfiguration.builder().backoff(Duration.ofSeconds(1), null, Duration.ofSeconds(2)).build();
-        assertEquals(2, c.getBackoff().size());
-        assertEquals(Duration.ofSeconds(1), c.getBackoff().get(0));
-        assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
+        cc = ConsumerConfiguration.builder().backoff(Duration.ofSeconds(1), null, Duration.ofSeconds(2)).build();
+        assertEquals(2, cc.getBackoff().size());
+        assertEquals(Duration.ofSeconds(1), cc.getBackoff().get(0));
+        assertEquals(Duration.ofSeconds(2), cc.getBackoff().get(1));
 
         assertThrows(IllegalArgumentException.class,
             () -> ConsumerConfiguration.builder().backoff(Duration.ZERO).build());
         assertThrows(IllegalArgumentException.class,
             () -> ConsumerConfiguration.builder().backoff(Duration.ofNanos(DURATION_MIN_LONG - 1)).build());
 
-        c = ConsumerConfiguration.builder().backoff(1000, 2000).build();
-        assertEquals(2, c.getBackoff().size());
-        assertEquals(Duration.ofSeconds(1), c.getBackoff().get(0));
-        assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
+        cc = ConsumerConfiguration.builder().backoff(1000, 2000).build();
+        assertEquals(2, cc.getBackoff().size());
+        assertEquals(Duration.ofSeconds(1), cc.getBackoff().get(0));
+        assertEquals(Duration.ofSeconds(2), cc.getBackoff().get(1));
 
         assertThrows(IllegalArgumentException.class,
             () -> ConsumerConfiguration.builder().backoff(0).build());
@@ -224,6 +229,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertFalse(cc.maxBytesWasSet());
         assertFalse(cc.numReplicasWasSet());
         assertFalse(cc.memStorageWasSet());
+        assertFalse(cc.priorityPolicyWasSet());
     }
 
     private void assertAsBuilt(ConsumerConfiguration c, ZonedDateTime zdt) {
@@ -273,45 +279,62 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(3), c.getBackoff().get(2));
         assertEquals(1, c.getMetadata().size());
         assertEquals(META_VALUE, c.getMetadata().get(META_KEY));
+        assertEquals(PriorityPolicy.Overflow, c.getPriorityPolicy());
+        assertNotNull(c.getPriorityGroups());
+        assertEquals(2, c.getPriorityGroups().size());
+        assertTrue(c.getPriorityGroups().contains("pgroup1"));
+        assertTrue(c.getPriorityGroups().contains("pgroup2"));
     }
 
     @Test
-    public void testParsingAndSetters() {
+    public void testParsingAndSetters() throws JsonParseException {
         String json = dataAsString("ConsumerConfiguration.json");
-        ConsumerConfiguration c = ConsumerConfiguration.builder().jsonValue(JsonParser.parseUnchecked(json)).build();
+        ConsumerConfiguration cc = ConsumerConfiguration.builder().jsonValue(JsonParser.parseUnchecked(json)).build();
 
-        assertEquals("foo-desc", c.getDescription());
-        assertEquals(DeliverPolicy.All, c.getDeliverPolicy());
-        assertEquals(AckPolicy.All, c.getAckPolicy());
-        assertEquals(Duration.ofSeconds(30), c.getAckWait());
-        assertEquals(Duration.ofSeconds(20), c.getIdleHeartbeat());
-        assertEquals(10, c.getMaxDeliver());
-        assertEquals(73, c.getRateLimit());
-        assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
-        assertEquals(2020, c.getStartTime().getYear(), 2020);
-        assertEquals(21, c.getStartTime().getSecond(), 21);
-        assertEquals("foo-name", c.getName());
-        assertEquals("foo-name", c.getDurable());
-        assertEquals("bar", c.getDeliverSubject());
-        assertEquals("foo-filter", c.getFilterSubject());
-        assertEquals(42, c.getMaxAckPending());
-        assertEquals("sample_freq-value", c.getSampleFrequency());
-        assertTrue(c.isFlowControl());
-        assertEquals(128, c.getMaxPullWaiting());
-        assertTrue(c.isHeadersOnly());
-        assertTrue(c.isMemStorage());
-        assertEquals(99, c.getStartSequence());
-        assertEquals(55, c.getMaxBatch());
-        assertEquals(56, c.getMaxBytes());
-        assertEquals(5, c.getNumReplicas());
-        assertEquals(Duration.ofSeconds(40), c.getMaxExpires());
-        assertEquals(Duration.ofSeconds(50), c.getInactiveThreshold());
-        assertEquals(3, c.getBackoff().size());
-        assertEquals(Duration.ofSeconds(1), c.getBackoff().get(0));
-        assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
-        assertEquals(Duration.ofSeconds(3), c.getBackoff().get(2));
-        assertEquals(1, c.getMetadata().size());
-        assertEquals(META_VALUE, c.getMetadata().get(META_KEY));
+        assertEquals("foo-desc", cc.getDescription());
+        assertEquals(DeliverPolicy.All, cc.getDeliverPolicy());
+        assertEquals(AckPolicy.All, cc.getAckPolicy());
+        assertEquals(Duration.ofSeconds(30), cc.getAckWait());
+        assertEquals(Duration.ofSeconds(20), cc.getIdleHeartbeat());
+        assertEquals(10, cc.getMaxDeliver());
+        assertEquals(73, cc.getRateLimit());
+        assertEquals(ReplayPolicy.Original, cc.getReplayPolicy());
+        assertEquals(2020, cc.getStartTime().getYear(), 2020);
+        assertEquals(21, cc.getStartTime().getSecond(), 21);
+        assertEquals("foo-name", cc.getName());
+        assertEquals("foo-name", cc.getDurable());
+        assertEquals("bar", cc.getDeliverSubject());
+        assertEquals("foo-filter", cc.getFilterSubject());
+        assertEquals(42, cc.getMaxAckPending());
+        assertEquals("sample_freq-value", cc.getSampleFrequency());
+        assertTrue(cc.isFlowControl());
+        assertEquals(128, cc.getMaxPullWaiting());
+        assertTrue(cc.isHeadersOnly());
+        assertTrue(cc.isMemStorage());
+        assertEquals(99, cc.getStartSequence());
+        assertEquals(55, cc.getMaxBatch());
+        assertEquals(56, cc.getMaxBytes());
+        assertEquals(5, cc.getNumReplicas());
+        assertEquals(Duration.ofSeconds(40), cc.getMaxExpires());
+        assertEquals(Duration.ofSeconds(50), cc.getInactiveThreshold());
+        assertEquals(3, cc.getBackoff().size());
+        assertEquals(Duration.ofSeconds(1), cc.getBackoff().get(0));
+        assertEquals(Duration.ofSeconds(2), cc.getBackoff().get(1));
+        assertEquals(Duration.ofSeconds(3), cc.getBackoff().get(2));
+        assertEquals(1, cc.getMetadata().size());
+        assertEquals(META_VALUE, cc.getMetadata().get(META_KEY));
+        assertEquals(PriorityPolicy.Overflow, cc.getPriorityPolicy());
+        assertNotNull(cc.getPriorityGroups());
+        assertEquals(2, cc.getPriorityGroups().size());
+        assertTrue(cc.getPriorityGroups().contains("pgroup1"));
+        assertTrue(cc.getPriorityGroups().contains("pgroup2"));
+
+        String edit = cc.toJson().replace("filter_subject", "filter_subjects").replace("\"foo-filter\"","[\"fs1\",\"fs2\"]");
+        cc = ConsumerConfiguration.builder().json(edit).build();
+        assertNotNull(cc.getFilterSubjects());
+        assertEquals(2, cc.getFilterSubjects().size());
+        assertTrue(cc.getFilterSubjects().contains("fs1"));
+        assertTrue(cc.getFilterSubjects().contains("fs2"));
 
         assertDefaultCc(new ConsumerConfiguration(ConsumerConfiguration.builder().jsonValue(JsonValue.EMPTY_MAP).build()));
     }

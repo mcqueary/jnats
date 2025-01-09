@@ -24,6 +24,7 @@ import static io.nats.client.support.JsonUtils.*;
 import static io.nats.client.support.JsonValueUtils.readBoolean;
 import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readLong;
+import static io.nats.client.support.JsonValueUtils.*;
 
 /**
  * Base Consume Options are provided to customize the way the consume and
@@ -44,9 +45,11 @@ public class BaseConsumeOptions implements JsonSerializable {
     protected final long idleHeartbeat;
     protected final int thresholdPercent;
     protected final boolean noWait;
+    protected final String group;
+    protected final long minPending;
+    protected final long minAckPending;
 
-    @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
-    protected BaseConsumeOptions(Builder b) {
+    protected BaseConsumeOptions(Builder<?, ?> b) {
         bytes = b.bytes;
         if (bytes > 0) {
             messages = b.messages < 0 ? DEFAULT_MESSAGE_COUNT_WHEN_BYTES : b.messages;
@@ -54,6 +57,10 @@ public class BaseConsumeOptions implements JsonSerializable {
         else {
             messages = b.messages < 0 ? DEFAULT_MESSAGE_COUNT : b.messages;
         }
+
+        this.group = b.group;
+        this.minPending = b.minPending;
+        this.minAckPending = b.minAckPending;
 
         // validation handled in builder
         thresholdPercent = b.thresholdPercent;
@@ -82,6 +89,9 @@ public class BaseConsumeOptions implements JsonSerializable {
         addField(sb, IDLE_HEARTBEAT, idleHeartbeat);
         addField(sb, THRESHOLD_PERCENT, thresholdPercent);
         addFldWhenTrue(sb, NO_WAIT, noWait);
+        addField(sb, GROUP, group);
+        addField(sb, MIN_PENDING, minPending);
+        addField(sb, MIN_ACK_PENDING, minAckPending);
         return endJson(sb).toString();
     }
 
@@ -101,12 +111,27 @@ public class BaseConsumeOptions implements JsonSerializable {
         return noWait;
     }
 
+    public String getGroup() {
+        return group;
+    }
+
+    public long getMinPending() {
+        return minPending;
+    }
+
+    public long getMinAckPending() {
+        return minAckPending;
+    }
+
     protected static abstract class Builder<B, CO> {
         protected int messages = -1;
         protected long bytes = 0;
         protected int thresholdPercent = DEFAULT_THRESHOLD_PERCENT;
         protected long expiresIn = DEFAULT_EXPIRES_IN_MILLIS;
         protected boolean noWait = false;
+        protected String group;
+        protected long minPending = -1;
+        protected long minAckPending = -1;
 
         protected abstract B getThis();
 
@@ -137,6 +162,9 @@ public class BaseConsumeOptions implements JsonSerializable {
             if (readBoolean(jsonValue, NO_WAIT, false)) {
                 noWait();
             }
+            group(readStringEmptyAsNull(jsonValue, GROUP));
+            minPending(readLong(jsonValue, MIN_PENDING, -1));
+            minAckPending(readLong(jsonValue, MIN_ACK_PENDING, -1));
             return getThis();
         }
 
@@ -187,6 +215,36 @@ public class BaseConsumeOptions implements JsonSerializable {
          */
         public B thresholdPercent(int thresholdPercent) {
             this.thresholdPercent = thresholdPercent < 1 ? DEFAULT_THRESHOLD_PERCENT : Math.min(100, thresholdPercent);
+            return getThis();
+        }
+
+        /**
+         * Sets the group
+         * @param group the priority group for this pull
+         * @return Builder
+         */
+        public B group(String group) {
+            this.group = group;
+            return getThis();
+        }
+
+        /**
+         * When specified, the consumer will only receive messages when the consumer has at least this many pending messages.
+         * @param minPending the min pending
+         * @return the builder
+         */
+        public B minPending(long minPending) {
+            this.minPending = minPending < 1 ? -1 : minPending;
+            return getThis();
+        }
+
+        /**
+         * When specified, the consumer will only receive messages when the consumer has at least this many ack pending messages.
+         * @param minAckPending the min ack pending
+         * @return the builder
+         */
+        public B minAckPending(long minAckPending) {
+            this.minAckPending = minAckPending < 1 ? -1 : minAckPending;
             return getThis();
         }
 

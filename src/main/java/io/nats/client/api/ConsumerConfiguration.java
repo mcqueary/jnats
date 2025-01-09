@@ -13,8 +13,6 @@
 
 package io.nats.client.api;
 
-import io.nats.client.Connection;
-import io.nats.client.JetStream;
 import io.nats.client.PullSubscribeOptions;
 import io.nats.client.PushSubscribeOptions;
 import io.nats.client.support.*;
@@ -44,6 +42,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     public static final DeliverPolicy DEFAULT_DELIVER_POLICY = DeliverPolicy.All;
     public static final AckPolicy DEFAULT_ACK_POLICY = AckPolicy.Explicit;
     public static final ReplayPolicy DEFAULT_REPLAY_POLICY = ReplayPolicy.Instant;
+    public static final PriorityPolicy DEFAULT_PRIORITY_POLICY = PriorityPolicy.None;
 
     public static final Duration DURATION_UNSET = Duration.ZERO;
     public static final Duration MIN_IDLE_HEARTBEAT = Duration.ofMillis(100);
@@ -88,6 +87,8 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final List<Duration> backoff;
     protected final Map<String, String> metadata;
     protected final List<String> filterSubjects;
+    protected final List<String> priorityGroups;
+    protected final PriorityPolicy priorityPolicy;
 
     protected ConsumerConfiguration(ConsumerConfiguration cc) {
         this.deliverPolicy = cc.deliverPolicy;
@@ -119,6 +120,8 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.backoff = cc.backoff == null ? null : new ArrayList<>(cc.backoff);
         this.metadata = cc.metadata == null ? null : new HashMap<>(cc.metadata);
         this.filterSubjects = cc.filterSubjects == null ? null : new ArrayList<>(cc.filterSubjects);
+        this.priorityGroups = cc.priorityGroups == null ? null : new ArrayList<>(cc.priorityGroups);
+        this.priorityPolicy = cc.priorityPolicy;
     }
 
     // For the builder
@@ -157,6 +160,9 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.backoff = b.backoff;
         this.metadata = b.metadata;
         this.filterSubjects = b.filterSubjects;
+
+        this.priorityGroups = b.priorityGroups;
+        this.priorityPolicy = b.priorityPolicy;
     }
 
     /**
@@ -201,6 +207,10 @@ public class ConsumerConfiguration implements JsonSerializable {
             else if (filterSubjects.size() == 1) {
                 JsonUtils.addField(sb, FILTER_SUBJECT, filterSubjects.get(0));
             }
+        }
+        JsonUtils.addStrings(sb, PRIORITY_GROUPS, priorityGroups);
+        if (priorityPolicy != null && priorityPolicy != DEFAULT_PRIORITY_POLICY) {
+            JsonUtils.addField(sb, PRIORITY_POLICY, priorityPolicy.toString());
         }
         return endJson(sb).toString();
     }
@@ -309,6 +319,14 @@ public class ConsumerConfiguration implements JsonSerializable {
      */
     public List<String> getFilterSubjects() {
         return filterSubjects;
+    }
+
+    /**
+     * Gets the priority groups as a list. May be null, otherwise won't be empty
+     * @return the list
+     */
+    public List<String> getPriorityGroups() {
+        return priorityGroups;
     }
 
     /**
@@ -457,6 +475,14 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
+     * Gets the priority policy of this consumer configuration.
+     * @return the priority policy.
+     */
+    public PriorityPolicy getPriorityPolicy() {
+        return GetOrDefault(priorityPolicy);
+    }
+
+    /**
      * Gets whether deliver policy of this consumer configuration was set or left unset
      * @return true if the policy was set, false if the policy was not set
      */
@@ -585,6 +611,14 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
+     * Gets whether priority policy for this consumer configuration was set or left unset
+     * @return true if the policy was set, false if the policy was not set
+     */
+    public boolean priorityPolicyWasSet() {
+        return priorityPolicy != null;
+    }
+
+    /**
      * Creates a builder for the options.
      * @return a publish options builder
      */
@@ -644,6 +678,9 @@ public class ConsumerConfiguration implements JsonSerializable {
         private Map<String, String> metadata;
         private List<String> filterSubjects;
 
+        private List<String> priorityGroups;
+        private PriorityPolicy priorityPolicy;
+
         /**
          * Construct the builder
          */
@@ -680,6 +717,7 @@ public class ConsumerConfiguration implements JsonSerializable {
                 this.maxBatch = cc.maxBatch;
                 this.maxBytes = cc.maxBytes;
                 this.numReplicas = cc.numReplicas;
+                this.pauseUntil = cc.pauseUntil;
 
                 this.flowControl = cc.flowControl;
                 this.headersOnly = cc.headersOnly;
@@ -694,6 +732,11 @@ public class ConsumerConfiguration implements JsonSerializable {
                 if (cc.filterSubjects != null) {
                     this.filterSubjects = new ArrayList<>(cc.filterSubjects);
                 }
+
+                if (cc.priorityGroups != null) {
+                    this.priorityGroups = new ArrayList<>(cc.priorityGroups);
+                }
+                this.priorityPolicy = cc.priorityPolicy;
             }
         }
 
@@ -715,6 +758,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         public Builder jsonValue(JsonValue jsonValue) {
             deliverPolicy(DeliverPolicy.get(readString(jsonValue, DELIVER_POLICY)));
             ackPolicy(AckPolicy.get(readString(jsonValue, ACK_POLICY)));
+
             replayPolicy(ReplayPolicy.get(readString(jsonValue, REPLAY_POLICY)));
 
             description(readString(jsonValue, DESCRIPTION));
@@ -773,6 +817,9 @@ public class ConsumerConfiguration implements JsonSerializable {
             else {
                 filterSubject(fs);
             }
+
+            priorityGroups(readOptionalStringList(jsonValue, PRIORITY_GROUPS));
+            priorityPolicy(PriorityPolicy.get(readString(jsonValue, PRIORITY_POLICY)));
 
             return this;
         }
@@ -935,7 +982,6 @@ public class ConsumerConfiguration implements JsonSerializable {
             }
             return this;
         }
-
 
         /**
          * Sets the filter subjects of the ConsumerConfiguration.
@@ -1296,6 +1342,47 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
+         * Sets the priority groups of the ConsumerConfiguration.
+         * Replaces any other priority groups set in the builder
+         * @param priorityGroups one or more priority groups
+         * @return Builder
+         */
+        public Builder priorityGroups(String... priorityGroups) {
+            return priorityGroups(Arrays.asList(priorityGroups));
+        }
+
+        /**
+         * Sets the priority groups of the ConsumerConfiguration.
+         * Replaces any other priority groups set in the builder
+         * @param priorityGroups the list of priority groups
+         * @return Builder
+         */
+        public Builder priorityGroups(List<String> priorityGroups) {
+            this.priorityGroups = new ArrayList<>();
+            if (priorityGroups != null) {
+                for (String pg : priorityGroups) {
+                    if (!nullOrEmpty(pg)) {
+                        this.priorityGroups.add(pg);
+                    }
+                }
+            }
+            if (this.priorityGroups.isEmpty()) {
+                this.priorityGroups = null;
+            }
+            return this;
+        }
+
+        /**
+         * Sets the priority policy of the ConsumerConfiguration.
+         * @param policy the priority policy.
+         * @return Builder
+         */
+        public Builder priorityPolicy(PriorityPolicy policy) {
+            this.priorityPolicy = policy;
+            return this;
+        }
+
+        /**
          * Builds the ConsumerConfiguration
          * @return The consumer configuration.
          */
@@ -1401,4 +1488,5 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected static DeliverPolicy GetOrDefault(DeliverPolicy p) { return p == null ? DEFAULT_DELIVER_POLICY : p; }
     protected static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? DEFAULT_ACK_POLICY : p; }
     protected static ReplayPolicy GetOrDefault(ReplayPolicy p) { return p == null ? DEFAULT_REPLAY_POLICY : p; }
+    protected static PriorityPolicy GetOrDefault(PriorityPolicy p) { return p == null ? DEFAULT_PRIORITY_POLICY : p; }
 }

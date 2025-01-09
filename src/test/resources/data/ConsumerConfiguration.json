@@ -26,5 +26,7 @@
   "backoff": [1000000000, 2000000000, 3000000000],
   "num_replicas": 5,
   "mem_storage": true,
-  "metadata":{"meta-test-key":"meta-test-value"}
+  "metadata":{"meta-test-key":"meta-test-value"},
+  "priority_groups": ["pgroup1", "pgroup2"],
+  "priority_policy": "overflow"
 }

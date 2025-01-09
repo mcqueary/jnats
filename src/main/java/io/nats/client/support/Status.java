@@ -21,13 +21,15 @@ public class Status {
     public static final String FLOW_CONTROL_TEXT = "FlowControl Request";
     public static final String HEARTBEAT_TEXT = "Idle Heartbeat";
     public static final String NO_RESPONDERS_TEXT = "No Responders Available For Request";
+    public static final String EOB_TEXT = "EOB";
     public static final int FLOW_OR_HEARTBEAT_STATUS_CODE = 100;
     public static final int NO_RESPONDERS_CODE = 503;
     public static final int BAD_REQUEST_CODE = 400;
     public static final int NOT_FOUND_CODE = 404;
-    public static final int REQUEST_TIMEOUT_CODE = 408;
+    public static final int BAD_JS_REQUEST_CODE = 408;
+    public static final int REQUEST_TIMEOUT_CODE = BAD_JS_REQUEST_CODE; // only left in for b/w compat
     public static final int CONFLICT_CODE = 409;
-    public static final int EOB = 204;
+    public static final int EOB_CODE = 204;
 
     public static String BAD_REQUEST                    = "Bad Request"; // 400
     public static String NO_MESSAGES                    = "No Messages"; // 404
@@ -43,6 +45,9 @@ public class Status {
     public static String BATCH_COMPLETED                = "Batch Completed"; // 409 informational
     public static String SERVER_SHUTDOWN                = "Server Shutdown"; // 409 informational with headers
     public static String LEADERSHIP_CHANGE              = "Leadership Change"; // 409
+
+    public static final Status EOB = new Status(EOB_CODE, EOB_TEXT);
+    public static final Status TIMEOUT_OR_NO_MESSAGES = new Status(NOT_FOUND_CODE, "Timeout or No Messages");
 
     private final int code;
     private final String message;
@@ -111,5 +116,9 @@ public class Status {
 
     public boolean isNoResponders() {
         return code == NO_RESPONDERS_CODE && message.equals(NO_RESPONDERS_TEXT);
+    }
+
+    public boolean isEob() {
+        return code == EOB_CODE && message.equals(EOB_TEXT);
     }
 }

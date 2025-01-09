@@ -22,7 +22,6 @@ import java.io.IOException;
 import static io.nats.client.BaseConsumeOptions.MIN_EXPIRES_MILLS;
 
 class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer, PullManagerObserver {
-    private final boolean isNoWait;
     private final boolean isNoWaitNoExpires;
     private final long maxWaitNanos;
     private final String pullSubject;
@@ -34,7 +33,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
     {
         super(cachedConsumerInfo);
 
-        isNoWait = fetchConsumeOptions.isNoWait();
+        boolean isNoWait = fetchConsumeOptions.isNoWait();
         long expiresInMillis = fetchConsumeOptions.getExpiresInMillis();
         isNoWaitNoExpires = isNoWait && expiresInMillis == ConsumerConfiguration.LONG_UNSET;
 
@@ -53,6 +52,9 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             .expiresIn(expiresInMillis)
             .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
             .noWait(isNoWait)
+            .group(fetchConsumeOptions.getGroup())
+            .minPending(fetchConsumeOptions.getMinPending())
+            .minAckPending(fetchConsumeOptions.getMinAckPending())
             .build();
         initSub(subscriptionMaker.subscribe(null, null, null, inactiveThreshold));
         pullSubject = sub._pull(pro, false, this);

@@ -23,7 +23,6 @@ public interface MessageInfoHandler {
      * Called to deliver a {@link MessageInfo} to the handler.
      *
      * @param messageInfo the received {@link MessageInfo}
-     * @throws InterruptedException if the thread for this handler is interrupted
      */
-    void onMessageInfo(MessageInfo messageInfo) throws InterruptedException;
+    void onMessageInfo(MessageInfo messageInfo);
 }

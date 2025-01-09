@@ -31,6 +31,9 @@ public class PullRequestOptions implements JsonSerializable {
     private final boolean noWait;
     private final Duration expiresIn;
     private final Duration idleHeartbeat;
+    private final String group;
+    private final long minPending;
+    private final long minAckPending;
 
     public PullRequestOptions(Builder b) {
         this.batchSize = b.batchSize;
@@ -38,6 +41,9 @@ public class PullRequestOptions implements JsonSerializable {
         this.noWait = b.noWait;
         this.expiresIn = b.expiresIn;
         this.idleHeartbeat = b.idleHeartbeat;
+        this.group = b.group;
+        this.minPending = b.minPending < 0 ? -1 : b.minPending;
+        this.minAckPending = b.minAckPending < 0 ? -1 : b.minAckPending;
     }
 
     @Override
@@ -48,6 +54,10 @@ public class PullRequestOptions implements JsonSerializable {
         JsonUtils.addFldWhenTrue(sb, NO_WAIT, noWait);
         JsonUtils.addFieldAsNanos(sb, EXPIRES, expiresIn);
         JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
+
+        JsonUtils.addField(sb, GROUP, group);
+        JsonUtils.addField(sb, MIN_PENDING, minPending);
+        JsonUtils.addField(sb, MIN_ACK_PENDING, minAckPending);
         return JsonUtils.endJson(sb).toString();
     }
 
@@ -91,6 +101,18 @@ public class PullRequestOptions implements JsonSerializable {
         return idleHeartbeat;
     }
 
+    public String getGroup() {
+        return group;
+    }
+
+    public long getMinPending() {
+        return minPending;
+    }
+
+    public long getMinAckPending() {
+        return minAckPending;
+    }
+
     /**
      * Creates a builder for the pull options, with batch size since it's always required
      * @param batchSize the size of the batch. Must be greater than 0
@@ -115,6 +137,9 @@ public class PullRequestOptions implements JsonSerializable {
         private boolean noWait;
         private Duration expiresIn;
         private Duration idleHeartbeat;
+        private String group;
+        private long minPending = -1;
+        private long minAckPending = -1;
 
         /**
          * Set the batch size for the pull
@@ -192,6 +217,37 @@ public class PullRequestOptions implements JsonSerializable {
          */
         public Builder idleHeartbeat(Duration idleHeartbeat) {
             this.idleHeartbeat = idleHeartbeat;
+            return this;
+        }
+
+        /**
+         * Sets the group
+         * Replaces any other groups set in the builder
+         * @param group the priority group for this pull
+         * @return Builder
+         */
+        public Builder group(String group) {
+            this.group = group;
+            return this;
+        }
+
+        /**
+         * When specified, the pull request will only receive messages when the consumer has at least this many pending messages.
+         * @param minPending the min pending
+         * @return the builder
+         */
+        public Builder minPending(long minPending) {
+            this.minPending = minPending < 1 ? -1 : minPending;
+            return this;
+        }
+
+        /**
+         * When specified, this Pull request will only receive messages when the consumer has at least this many ack pending messages.
+         * @param minAckPending the min ack pending
+         * @return the builder
+         */
+        public Builder minAckPending(long minAckPending) {
+            this.minAckPending = minAckPending < 1 ? -1 : minAckPending;
             return this;
         }
 

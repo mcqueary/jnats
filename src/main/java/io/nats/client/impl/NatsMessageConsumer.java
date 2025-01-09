@@ -19,7 +19,7 @@ import io.nats.client.api.ConsumerInfo;
 import java.io.IOException;
 
 class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManagerObserver {
-    protected final ConsumeOptions opts;
+    protected final ConsumeOptions consumeOpts;
     protected final int thresholdMessages;
     protected final long thresholdBytes;
     protected final SimplifiedSubscriptionMaker subscriptionMaker;
@@ -28,21 +28,21 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
 
     NatsMessageConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
                         ConsumerInfo cachedConsumerInfo,
-                        ConsumeOptions opts,
+                        ConsumeOptions consumeOpts,
                         Dispatcher userDispatcher,
                         final MessageHandler userMessageHandler) throws IOException, JetStreamApiException
     {
         super(cachedConsumerInfo);
 
         this.subscriptionMaker = subscriptionMaker;
-        this.opts = opts;
+        this.consumeOpts = consumeOpts;
         this.userDispatcher = userDispatcher;
         this.userMessageHandler = userMessageHandler;
 
-        int bm = opts.getBatchSize();
-        long bb = opts.getBatchBytes();
-        int rePullMessages = Math.max(1, bm * opts.getThresholdPercent() / 100);
-        long rePullBytes = bb == 0 ? 0 : Math.max(1, bb * opts.getThresholdPercent() / 100);
+        int bm = consumeOpts.getBatchSize();
+        long bb = consumeOpts.getBatchBytes();
+        int rePullMessages = Math.max(1, bm * consumeOpts.getThresholdPercent() / 100);
+        long rePullBytes = bb == 0 ? 0 : Math.max(1, bb * consumeOpts.getThresholdPercent() / 100);
         thresholdMessages = bm - rePullMessages;
         thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - rePullBytes;
 
@@ -85,12 +85,15 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
     }
 
     private void repull() {
-        int rePullMessages = Math.max(1, opts.getBatchSize() - pmm.pendingMessages);
-        long rePullBytes = opts.getBatchBytes() == 0 ? 0 : opts.getBatchBytes() - pmm.pendingBytes;
+        int rePullMessages = Math.max(1, consumeOpts.getBatchSize() - pmm.pendingMessages);
+        long rePullBytes = consumeOpts.getBatchBytes() == 0 ? 0 : consumeOpts.getBatchBytes() - pmm.pendingBytes;
         PullRequestOptions pro = PullRequestOptions.builder(rePullMessages)
             .maxBytes(rePullBytes)
-            .expiresIn(opts.getExpiresInMillis())
-            .idleHeartbeat(opts.getIdleHeartbeat())
+            .expiresIn(consumeOpts.getExpiresInMillis())
+            .idleHeartbeat(consumeOpts.getIdleHeartbeat())
+            .group(consumeOpts.getGroup())
+            .minPending(consumeOpts.getMinPending())
+            .minAckPending(consumeOpts.getMinAckPending())
             .build();
         sub._pull(pro, false, this);
     }

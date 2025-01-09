@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.PriorityPolicy;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Status;
 import io.nats.client.utils.TestBase;
@@ -724,6 +725,9 @@ public class JetStreamPullTests extends JetStreamTestBase {
         assertNull(pro.getExpiresIn());
         assertNull(pro.getIdleHeartbeat());
         assertFalse(pro.isNoWait());
+        assertNull(pro.getGroup());
+        assertEquals(-1, pro.getMinPending());
+        assertEquals(-1, pro.getMinAckPending());
 
         pro = PullRequestOptions.noWait(21).build();
         assertEquals(21, pro.getBatchSize());
@@ -754,6 +758,15 @@ public class JetStreamPullTests extends JetStreamTestBase {
         assertEquals(43, pro.getExpiresIn().toMillis());
         assertEquals(21, pro.getIdleHeartbeat().toMillis());
         assertFalse(pro.isNoWait());
+
+        pro = PullRequestOptions.builder(41)
+            .group("g")
+            .minPending(1)
+            .minAckPending(2)
+            .build();
+        assertEquals("g", pro.getGroup());
+        assertEquals(1, pro.getMinPending());
+        assertEquals(2, pro.getMinAckPending());
     }
 
     interface ConflictSetup {
@@ -1160,5 +1173,131 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
         readerThread.start();
         return readerThread;
+    }
+
+    @Test
+    public void testOverflow() throws Exception {
+        ListenerForTesting l = new ListenerForTesting();
+        Options.Builder b = Options.builder().errorListener(l);
+        jsServer.run(b, TestBase::atLeast2_11, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+            JetStream js = nc.jetStream();
+            jsPublish(js, tsc.subject(), 100);
+
+            // Setting PriorityPolicy requires at least one PriorityGroup to be set
+            ConsumerConfiguration ccNoGroup = ConsumerConfiguration.builder()
+                .priorityPolicy(PriorityPolicy.Overflow)
+                .build();
+            JetStreamApiException jsae = assertThrows(JetStreamApiException.class,
+                () -> jsm.addOrUpdateConsumer(tsc.stream, ccNoGroup));
+            assertEquals(10159, jsae.getApiErrorCode());
+
+            // Testing errors
+            String group = variant();
+            String consumer = variant();
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                .name(consumer)
+                .priorityPolicy(PriorityPolicy.Overflow)
+                .priorityGroups(group)
+                .filterSubjects(tsc.subject()).build();
+            jsm.addOrUpdateConsumer(tsc.stream, cc);
+
+            PullSubscribeOptions so = PullSubscribeOptions.fastBind(tsc.stream, consumer);
+            JetStreamSubscription sub = js.subscribe(null, so);
+
+            // 400 Bad Request - Priority Group missing
+            sub.pull(1);
+            assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(1000));
+
+            // 400 Bad Request - Invalid Priority Group
+            sub.pull(PullRequestOptions.builder(5).group("bogus").build());
+            assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(1000));
+
+            // Testing min ack pending
+            group = variant();
+            consumer = variant();
+
+            cc = ConsumerConfiguration.builder()
+                .name(consumer)
+                .priorityPolicy(PriorityPolicy.Overflow)
+                .priorityGroups(group)
+                .ackWait(60_000)
+                .filterSubjects(tsc.subject()).build();
+            jsm.addOrUpdateConsumer(tsc.stream, cc);
+
+            so = PullSubscribeOptions.fastBind(tsc.stream, consumer);
+            JetStreamSubscription subPrime = js.subscribe(null, so);
+            JetStreamSubscription subOver = js.subscribe(null, so);
+
+            PullRequestOptions proNoMin = PullRequestOptions.builder(5)
+                .group(group)
+                .build();
+
+            PullRequestOptions proOverA = PullRequestOptions.builder(5)
+                .group(group)
+                .minAckPending(5)
+                .build();
+
+            PullRequestOptions proOverB = PullRequestOptions.builder(5)
+                .group(group)
+                .minAckPending(10)
+                .build();
+
+            _overflowCheck(subPrime, proNoMin, true, 5);
+            _overflowCheck(subOver, proNoMin, true, 5);
+
+            _overflowCheck(subPrime, proNoMin, false, 5);
+            _overflowCheck(subOver, proOverA, true, 5);
+            _overflowCheck(subOver, proOverB, true, 0);
+
+            // Testing min pending
+            group = variant();
+            consumer = variant();
+
+            cc = ConsumerConfiguration.builder()
+                .name(consumer)
+                .priorityPolicy(PriorityPolicy.Overflow)
+                .priorityGroups(group)
+                .filterSubjects(tsc.subject()).build();
+            jsm.addOrUpdateConsumer(tsc.stream, cc);
+
+            so = PullSubscribeOptions.fastBind(tsc.stream, consumer);
+            subPrime = js.subscribe(null, so);
+            subOver = js.subscribe(null, so);
+
+            proNoMin = PullRequestOptions.builder(5)
+                .group(group)
+                .build();
+
+            proOverA = PullRequestOptions.builder(5)
+                .group(group)
+                .minPending(78)
+                .build();
+
+            _overflowCheck(subPrime, proNoMin, true, 5);
+            _overflowCheck(subOver, proNoMin, true, 5);
+            _overflowCheck(subOver, proOverA, true, 5);
+            _overflowCheck(subOver, proOverA, true, 5);
+            // exactly 80 messages now pending, gt or eq to pull min pending for 3 (80, 79, 78)
+            _overflowCheck(subOver, proOverA, true, 3);
+            // exactly 77 messages now pending lt pull min pending
+            _overflowCheck(subOver, proOverA, true, 0);
+        });
+    }
+
+    private static void _overflowCheck(JetStreamSubscription sub, PullRequestOptions pro, boolean ack, int expected) throws InterruptedException, JetStreamApiException, IOException {
+        sub.pull(pro);
+        int count = 0;
+        Message m = sub.nextMessage(1000);
+        while (m != null) {
+            count++;
+            if (ack) {
+                m.ack();
+            }
+            m = sub.nextMessage(100);
+        }
+        assertEquals(expected, count);
     }
 }
