@@ -55,7 +55,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             .noWait(isNoWait)
             .build();
         initSub(subscriptionMaker.subscribe(null, null, null, inactiveThreshold));
-        pullSubject = sub._pull(pro, false, this);
+        pullSubject = sub._pull(pro, true, this);
         startNanos = -1;
     }
 
